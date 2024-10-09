@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import WebSocket from "ws";
 import dotenv from "dotenv";
+import { logger } from "../utils/console-logger";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -9,7 +10,7 @@ dotenv.config();
 const { OPENAI_API_KEY } = process.env;
 
 if (!OPENAI_API_KEY) {
-  console.error("Missing OpenAI API key. Please set it in the .env file.");
+  logger.error("Missing OpenAI API key. Please set it in the .env file.");
   process.exit(1);
 }
 

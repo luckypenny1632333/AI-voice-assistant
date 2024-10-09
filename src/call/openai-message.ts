@@ -1,6 +1,7 @@
 import WebSocket from "ws";
-import { getDuration } from "../utils/get-duration";
+import { getDuration } from "../utils/datetime";
 import { logger } from "../utils/console-logger";
+import { getStringFromRawData } from "../utils/websocket";
 import type { CallSession } from "./types";
 import { getSystemMessage, VOICE } from "./agent/agent";
 
@@ -48,7 +49,7 @@ const sendSessionUpdate = (openAiWs: WebSocket, session: CallSession) => {
         },
     };
 
-    console.log("Sending session update:", JSON.stringify(sessionUpdate));
+    logger.log("Sending session update:", sessionUpdate);
     openAiWs.send(JSON.stringify(sessionUpdate));
 };
 
@@ -67,10 +68,7 @@ const sendInitiateConversation = (openAiWs: WebSocket) => {
         },
     };
 
-    console.log(
-        "Sending initiate conversation:",
-        JSON.stringify(initiateConversation),
-    );
+    logger.log("Sending initiate conversation:", initiateConversation);
     openAiWs.send(JSON.stringify(initiateConversation));
     openAiWs.send(JSON.stringify({ type: "response.create" }));
 };
@@ -90,18 +88,6 @@ export const handleOpenAIMessage = (
     mediaStreamWs: WebSocket,
 ) => {
     try {
-        const getStringFromRawData = (
-            data: WebSocket.RawData,
-        ): string | undefined => {
-            if (Buffer.isBuffer(data)) {
-                return data.toString("utf-8");
-            } else if (data instanceof ArrayBuffer) {
-                return Buffer.from(data).toString("utf-8");
-            } else {
-                console.log("Received unknown data type", { data });
-            }
-        };
-
         const message = JSON.parse(getStringFromRawData(data) ?? "{}");
 
         const timePrefix = `[${getDuration(session.createdAt)}]`;
@@ -142,16 +128,16 @@ export const handleOpenAIMessage = (
             )?.transcript;
             if (agentMessage) {
                 session.transcript += `${timePrefix} Agent: ${agentMessage}\n`;
-                console.log(
+                logger.log(
                     `${timePrefix} Agent (${session.id}): ${agentMessage}`,
                 );
             } else {
-                console.log(`${timePrefix} Agent message not found`);
+                logger.log(`${timePrefix} Agent message not found`);
             }
         }
 
         if (message.type === "session.updated") {
-            console.log("Session updated successfully:", message);
+            logger.log("Session updated successfully:", message);
         }
 
         if (message.type === "response.audio.delta" && message.delta) {
@@ -167,11 +153,6 @@ export const handleOpenAIMessage = (
             mediaStreamWs.send(JSON.stringify(audioDelta));
         }
     } catch (error) {
-        console.error(
-            "Error processing OpenAI message:",
-            error,
-            "Raw message:",
-            data,
-        );
+        logger.error("Error processing OpenAI message", error, { data });
     }
 };

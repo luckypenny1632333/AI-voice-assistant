@@ -1,6 +1,7 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
 import { omit } from "lodash";
 import { getTwilioMLResponse } from "../providers/twilio";
+import { logger } from "../utils/console-logger";
 
 // Route for Twilio to handle incoming and outgoing calls
 export const handleIncomingCall = async (
@@ -11,7 +12,7 @@ export const handleIncomingCall = async (
     if (typeof requestBody !== "object") return;
 
     const incomingCall = omit(requestBody, ["CallToken"]);
-    console.log(
+    logger.log(
         `Incoming call from (${incomingCall.CallerCountry}) ${incomingCall.Caller}`,
     );
 

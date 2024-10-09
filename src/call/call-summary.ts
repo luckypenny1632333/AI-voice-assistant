@@ -3,6 +3,7 @@ import { zodResponseFormat } from "openai/helpers/zod";
 import { pick } from "lodash";
 import { openai } from "../providers/openai";
 import axios from "axios";
+import { logger } from "../utils/console-logger";
 
 const WEBHOOK_URL = "https://lx0.app.n8n.cloud/webhook/call-completion";
 
@@ -10,7 +11,7 @@ const WEBHOOK_URL = "https://lx0.app.n8n.cloud/webhook/call-completion";
 async function extractCallSummary(
     session: CallSession,
 ): Promise<CallSummary | null> {
-    console.log("Starting ChatGPT API call...");
+    logger.log("Starting ChatGPT API call...");
     try {
         const completion = await openai.beta.chat.completions.parse({
             model: "gpt-4o-2024-08-06",
@@ -39,11 +40,11 @@ async function extractCallSummary(
 
         const message = completion.choices[0].message.parsed;
 
-        console.log("ChatGPT API response:", message);
+        logger.log("ChatGPT API response:", { message });
 
         return message;
     } catch (error) {
-        console.error("Error making ChatGPT completion call:", error);
+        logger.error("Error making ChatGPT completion call:", error);
         throw error;
     }
 }
@@ -53,7 +54,7 @@ async function sendToWebhook(payload: {
     session: CallSession;
     callSummary: CallSummary;
 }): Promise<boolean> {
-    console.log("Sending data to webhook:", JSON.stringify(payload, null, 2));
+    logger.log("Sending data to webhook:", payload);
     try {
         const response = await axios.post(WEBHOOK_URL, payload, {
             headers: {
@@ -61,10 +62,13 @@ async function sendToWebhook(payload: {
             },
         });
 
-        console.log("Webhook response:", response.status, response.data);
+        logger.log("Webhook response:", {
+            status: response.status,
+            data: response.data,
+        });
         return true;
     } catch (error) {
-        console.error("Error sending data to webhook:", error);
+        logger.error("Error sending data to webhook:", error);
     }
     return false;
 }
@@ -73,7 +77,7 @@ async function sendToWebhook(payload: {
 export async function processTranscriptAndSend(
     session: CallSession,
 ): Promise<CallSummary | null> {
-    console.log(`Starting transcript processing for session ${session.id}...`);
+    logger.log(`Starting transcript processing for session ${session.id}...`);
     try {
         // Make the ChatGPT completion call
         const callSummary = await extractCallSummary(session);
@@ -84,13 +88,13 @@ export async function processTranscriptAndSend(
                 session,
                 callSummary,
             });
-            console.log("Extracted and sent customer details:", callSummary);
+            logger.log("Extracted and sent customer details:", callSummary);
             return callSummary;
         } else {
-            console.error("Unexpected response structure from ChatGPT API");
+            logger.error("Unexpected response structure from ChatGPT API");
         }
     } catch (error) {
-        console.error("Error in processTranscriptAndSend:", error);
+        logger.error("Error in processTranscriptAndSend:", error);
     }
 
     return null;

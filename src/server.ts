@@ -11,6 +11,7 @@ import {
     type CallSession,
 } from "./call";
 import { getOpenAiWs } from "./providers/openai";
+import { logger } from "./utils/console-logger";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -29,7 +30,7 @@ fastify.all("/incoming-call", handleIncomingCall);
 // WebSocket route for media-stream
 fastify.register(async (fastify) => {
     fastify.get("/media-stream", { websocket: true }, (twilioWs, req) => {
-        console.log(
+        logger.log(
             "Client connected",
             // util.inspect({ connection }, { depth: 3, colors: true }),
         );
@@ -56,10 +57,10 @@ fastify.register(async (fastify) => {
 
         // Handle WebSocket close and errors
         openAiWs.on("close", () => {
-            console.log("Disconnected from the OpenAI Realtime API");
+            logger.log("Disconnected from the OpenAI Realtime API");
         });
         openAiWs.on("error", (error) => {
-            console.error("Error in the OpenAI WebSocket:", error);
+            logger.error("Error in the OpenAI WebSocket:", error);
         });
 
         // Handle incoming messages from Twilio
@@ -82,8 +83,8 @@ fastify.get("/", async (_request, reply) => {
 const PORT = Number(process.env.PORT) ?? 3000;
 fastify.listen({ port: PORT }, (err) => {
     if (err) {
-        console.error(err);
+        logger.error("Error", err);
         process.exit(1);
     }
-    console.log(`Server is listening on port ${PORT}`);
+    logger.log(`Server is listening on port ${PORT}`);
 });

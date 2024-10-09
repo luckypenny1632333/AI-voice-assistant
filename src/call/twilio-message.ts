@@ -2,6 +2,7 @@ import WebSocket from "ws";
 import fs from "fs";
 import type { CallSession } from "./types";
 import { processTranscriptAndSend } from "./call-summary";
+import { logger } from "../utils/console-logger";
 
 export const handleTwilioMessage = (
   data: WebSocket.RawData,
@@ -17,7 +18,7 @@ export const handleTwilioMessage = (
       } else if (data instanceof ArrayBuffer) {
         return Buffer.from(data).toString("utf-8");
       } else {
-        console.log("Received unknown data type", { data });
+        logger.log("Received unknown data type", { data });
       }
     };
 
@@ -41,10 +42,9 @@ export const handleTwilioMessage = (
             message.start.customParameters.incomingCall.slice(1),
           ),
         );
-        console.log(
+        logger.log(
           "Incoming stream has started",
-          session.streamSid,
-          session.incomingCall,
+          { streamSid: session.streamSid, incomingCall: session.incomingCall },
           // util.inspect(
           //     { data },
           //     { depth: null, colors: true },
@@ -52,11 +52,11 @@ export const handleTwilioMessage = (
         );
         break;
       default:
-        console.log("Received non-media event:", message.event);
+        logger.log("Received non-media event:", { event: message.event });
         break;
     }
   } catch (error) {
-    console.error("Error parsing message:", error, "Message:", data);
+    logger.error("Error parsing message", error, { message: data });
   }
 };
 
@@ -66,11 +66,12 @@ export const handleTwilioWsClose = async (
   sessions: Map<string, CallSession>,
 ) => {
   if (openAiWs.readyState === WebSocket.OPEN) openAiWs.close();
-  console.log(`Client disconnected (${session.id}).`);
-  console.log("Full Transcript:");
-  console.log(session.transcript);
 
-  const parsedContent = await processTranscriptAndSend(session);
+  logger.log(`Client disconnected (${session.id}).`);
+  logger.log("Full Transcript:");
+  logger.log(session.transcript);
+
+  const callSummary = await processTranscriptAndSend(session);
 
   // Save transcript to a file
   const transcriptFilePath = `transcripts/${session.id}.json`;
@@ -83,7 +84,7 @@ export const handleTwilioWsClose = async (
         createdAt: session.createdAt,
         incomingCall: session.incomingCall,
         transcript: session.transcript,
-        parsedContent,
+        callSummary,
       },
       null,
       2,

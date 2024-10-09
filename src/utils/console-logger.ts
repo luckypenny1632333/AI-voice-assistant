@@ -26,6 +26,20 @@ export class ConsoleLogger {
     }
   }
 
+  error(line: string, error?: unknown, data?: Record<string, unknown>) {
+    console.error(
+      line,
+      util.inspect(error, {
+        depth: null,
+        colors: true,
+      }),
+      util.inspect(data, {
+        depth: null,
+        colors: true,
+      }),
+    );
+  }
+
   // Overwrite the last line in the console
   replaceLastLine(text: string) {
     readline.clearLine(process.stdout, 0); // Clear the last line
