@@ -1,7 +1,7 @@
 modules = ["nodejs-20", "nix"]
 hidden = [".config", "package-lock.json", "tsconfig.json"]
-run = "tsx index.ts"
-entrypoint = "index.ts"
+run = "npm run dev"
+entrypoint = "server.ts"
 
 [gitHubImport]
 requiredFiles = [".replit", "replit.nix", "package.json", "package-lock.json"]
@@ -13,11 +13,11 @@ channel = "stable-24_05"
 language = "nodejs"
 
 [deployment]
-run = ["tsx", "index.ts"]
+run = ["npm", "run start"]
 deploymentTarget = "cloudrun"
 ignorePorts = false
 
 [[ports]]
-localPort = 5050
+localPort = 3000
 externalPort = 80
 exposeLocalhost = true

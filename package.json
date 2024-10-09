@@ -2,29 +2,40 @@
   "name": "openai-realtime-api",
   "version": "1.0.0",
   "description": "",
-  "main": "index.ts",
   "keywords": [],
   "author": "Alex Wegener, lx-0",
   "license": "ISC",
-  "type": "module",
   "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "nodemon --watch src --ext ts --exec 'ts-node src/server.ts'",
+    "reset": "rm -rf dist",
+    "reset:modules": "npm run reset && npm run reset:node",
+    "reset:full": "npm run reset && npm run reset:node:full",
+    "reset:node": "rm -rf node_modules && npm ci",
+    "reset:node:full": "rm -rf node_modules && rm package-lock.json && npm cache clean --force && npm i",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "@fastify/formbody": "^8.0.0",
     "@fastify/websocket": "^11.0.0",
-    "axios": "^1.4.0",
+    "axios": "^1.7.0",
     "dotenv": "^16.4.5",
     "fastify": "^5.0.0",
     "form-data": "^4.0.0",
-    "lodash-es": "^4.17.21",
+    "openai": "^4.67.3",
+    "lodash": "^4.17.21",
+    "node-cache": "^5.1.2",
     "node-fetch": "^3.3.2",
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/lodash-es": "^4.17.12",
+    "@types/lodash": "^4.17.10",
     "@types/node": "^20.10.0",
     "@types/ws": "^8.5.12",
-    "tsx": "^4.7.1"
+    "nodemon": "^3.1.7",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.1.6"
   }
 }
