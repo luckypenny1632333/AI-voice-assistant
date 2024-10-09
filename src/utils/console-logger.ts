@@ -18,10 +18,12 @@ export class ConsoleLogger {
       this.lastCount = 0;
       console.log(
         line,
-        util.inspect(data, {
-          depth: null,
-          colors: true,
-        }),
+        data
+          ? util.inspect(data, {
+              depth: null,
+              colors: true,
+            })
+          : "",
       );
     }
   }
@@ -29,14 +31,18 @@ export class ConsoleLogger {
   error(line: string, error?: unknown, data?: Record<string, unknown>) {
     console.error(
       line,
-      util.inspect(error, {
-        depth: null,
-        colors: true,
-      }),
-      util.inspect(data, {
-        depth: null,
-        colors: true,
-      }),
+      error
+        ? util.inspect(error, {
+            depth: null,
+            colors: true,
+          })
+        : "",
+      data
+        ? util.inspect(data, {
+            depth: null,
+            colors: true,
+          })
+        : "",
     );
   }
 
