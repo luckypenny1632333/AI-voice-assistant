@@ -6,7 +6,7 @@
   "author": "Alex Wegener, lx-0",
   "license": "ISC",
   "scripts": {
-    "build": "tsc",
+    "build": "rm -rf dist && tsc",
     "start": "node dist/server.js",
     "dev": "nodemon --watch src --ext ts --exec 'ts-node src/server.ts'",
     "reset": "rm -rf dist",

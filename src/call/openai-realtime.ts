@@ -78,7 +78,7 @@ const sendInitiateConversation = (openAiWs: WebSocket) => {
     };
 
     logger.log(
-        "Sending initiate conversation:",
+        "Sending initiate conversation",
         undefined, // initiateConversation,
         loggerContext,
     );
@@ -165,13 +165,15 @@ export const handleOpenAIMessage = (
         // Agent message handling
         if (message.type === "response.done") {
             const { status, status_details, usage } = message.response;
-            const agentMessage = message.response.output[0]?.content?.find(
-                (content: unknown) =>
-                    typeof content === "object" &&
-                    content !== null &&
-                    "transcript" in content &&
-                    content.transcript,
-            )?.transcript;
+            const agentMessage = message.response.output[0]?.content
+                ?.find(
+                    (content: unknown) =>
+                        typeof content === "object" &&
+                        content !== null &&
+                        "transcript" in content &&
+                        content.transcript,
+                )
+                ?.transcript.trim();
 
             if (agentMessage) {
                 session.transcript += `${timePrefix} Agent: ${agentMessage}\n`;
@@ -194,7 +196,7 @@ export const handleOpenAIMessage = (
                 status_details.error.code === "insufficient_quota"
             ) {
                 logger.error(
-                    "Insufficient quota.",
+                    "Insufficient quota",
                     undefined,
                     undefined,
                     loggerContext,
@@ -204,7 +206,11 @@ export const handleOpenAIMessage = (
                 if (session.incomingCall?.CallSid) {
                     endCall(session.incomingCall.CallSid)
                         .then(() => {
-                            logger.log(`Call ended`, undefined, loggerContext);
+                            logger.log(
+                                `Call ${session.incomingCall?.CallSid} ended`,
+                                undefined,
+                                loggerContext,
+                            );
                         })
                         .catch((err) =>
                             logger.error(
@@ -221,7 +227,7 @@ export const handleOpenAIMessage = (
         }
 
         if (message.type === "session.updated") {
-            logger.log("Session updated successfully:", message, loggerContext);
+            logger.log("Session updated successfully", message, loggerContext);
         }
 
         if (message.type === "response.audio.delta" && message.delta) {

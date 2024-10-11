@@ -21,7 +21,7 @@ export class ConsoleLogger {
       this.lastCount = 0;
       console.log(
         line,
-        data
+        data && !process.env.REPLIT_DEPLOYMENT
           ? util.inspect(data, {
               depth: null,
               colors: true,
@@ -41,7 +41,7 @@ export class ConsoleLogger {
       line = `[${context}] ${line}`;
     }
     console.error(line);
-    if (error) {
+    if (error && !process.env.REPLIT_DEPLOYMENT) {
       console.error(
         util.inspect(error, {
           depth: null,
@@ -49,7 +49,7 @@ export class ConsoleLogger {
         }),
       );
     }
-    if (data) {
+    if (data && !process.env.REPLIT_DEPLOYMENT) {
       console.error(
         util.inspect(data, {
           depth: null,

@@ -71,7 +71,11 @@ async function sendToWebhook(payload: {
     session: CallSession;
     callSummary: CallSummary;
 }): Promise<boolean> {
-    logger.log("Sending data to webhook:", payload, loggerContext);
+    logger.log(
+        "Sending data to webhook",
+        undefined, // payload,
+        loggerContext,
+    );
     try {
         const response = await axios.post(WEBHOOK_URL, payload, {
             headers: {

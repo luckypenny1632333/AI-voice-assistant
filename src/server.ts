@@ -43,5 +43,9 @@ fastify.listen({ port: PORT }, (err) => {
         logger.error("Error", err, undefined, loggerContext);
         process.exit(1);
     }
-    logger.log(`Server is listening on port ${PORT}`, undefined, loggerContext);
+    logger.log(
+        `Server is listening on port ${PORT}`,
+        { deployed: process.env.REPLIT_DEPLOYMENT === "1" },
+        loggerContext,
+    );
 });

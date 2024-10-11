@@ -56,7 +56,7 @@ export const handleTwilioMessage = (
         break;
       default:
         logger.log(
-          "Received non-media event:",
+          `Received non-media event: ${message.event}`,
           {
             event: message.event,
             message,
