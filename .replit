@@ -15,7 +15,7 @@ language = "nodejs"
 [deployment]
 deploymentTarget = "gce"
 ignorePorts = false
-build = ["sh", "-c", "npm run build"]
+# build = ["sh", "-c", "npm run build"]
 run = ["sh", "-c", "npm run start"]
 
 [[ports]]

@@ -1,9 +1,15 @@
-import readline from "readline";
-import util from "util";
+import readline from 'readline';
+import util from 'util';
 
 export class ConsoleLogger {
   lastCount = 0;
   lastLine: string | null = null;
+
+  debug(line: string, data?: Record<string, unknown>, context?: string) {
+    if (!process.env.REPLIT_DEPLOYMENT) {
+      this.log(line, data, context);
+    }
+  }
 
   log(line: string, data?: Record<string, unknown>, context?: string) {
     if (context) {
@@ -26,17 +32,12 @@ export class ConsoleLogger {
               depth: null,
               colors: true,
             })
-          : "",
+          : ''
       );
     }
   }
 
-  error(
-    line: string,
-    error?: unknown,
-    data?: Record<string, unknown>,
-    context?: string,
-  ) {
+  error(line: string, error?: unknown, data?: Record<string, unknown>, context?: string) {
     if (context) {
       line = `[${context}] ${line}`;
     }
@@ -46,7 +47,7 @@ export class ConsoleLogger {
         util.inspect(error, {
           depth: null,
           colors: true,
-        }),
+        })
       );
     }
     if (data && !process.env.REPLIT_DEPLOYMENT) {
@@ -54,7 +55,7 @@ export class ConsoleLogger {
         util.inspect(data, {
           depth: null,
           colors: true,
-        }),
+        })
       );
     }
   }

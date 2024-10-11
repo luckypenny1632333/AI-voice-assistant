@@ -131,7 +131,3 @@ dist
 
 # Replit debugger
 .breakpoints
-
-# CUSTOM
-transcripts/
-dist/

@@ -1,5 +1,5 @@
 import type { FastifyRequest, FastifyReply } from "fastify";
-import { omit } from "lodash";
+import { omit } from "lodash-es";
 import { getTwilioMLResponse } from "../providers/twilio";
 import { logger } from "../utils/console-logger";
 
