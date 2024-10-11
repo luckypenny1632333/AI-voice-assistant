@@ -3,6 +3,8 @@ import { omit } from "lodash";
 import { getTwilioMLResponse } from "../providers/twilio";
 import { logger } from "../utils/console-logger";
 
+const loggerContext = "IncomingCall";
+
 // Route for Twilio to handle incoming and outgoing calls
 export const handleIncomingCall = async (
     request: FastifyRequest,
@@ -14,6 +16,8 @@ export const handleIncomingCall = async (
     const incomingCall = omit(requestBody, ["CallToken"]);
     logger.log(
         `Incoming call from (${incomingCall.CallerCountry}) ${incomingCall.Caller}`,
+        undefined,
+        loggerContext,
     );
 
     const twiMlResponse = getTwilioMLResponse(

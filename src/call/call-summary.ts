@@ -2,16 +2,19 @@ import { CallSummarySchema, type CallSession, type CallSummary } from "./types";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { pick } from "lodash";
 import { openai } from "../providers/openai";
+import { RateLimitError } from "openai";
 import axios from "axios";
 import { logger } from "../utils/console-logger";
 
 const WEBHOOK_URL = "https://lx0.app.n8n.cloud/webhook/call-completion";
 
+const loggerContext = "CallSummary";
+
 // Function to make ChatGPT API completion call with structured outputs
 async function extractCallSummary(
     session: CallSession,
 ): Promise<CallSummary | null> {
-    logger.log("Starting ChatGPT API call...");
+    logger.log("Starting ChatGPT API call...", undefined, loggerContext);
     try {
         const completion = await openai.beta.chat.completions.parse({
             model: "gpt-4o-2024-08-06",
@@ -40,12 +43,26 @@ async function extractCallSummary(
 
         const message = completion.choices[0].message.parsed;
 
-        logger.log("ChatGPT API response:", { message });
+        logger.log("ChatGPT API response:", { message }, loggerContext);
 
         return message;
     } catch (error) {
-        logger.error("Error making ChatGPT completion call:", error);
-        throw error;
+        if (error instanceof RateLimitError) {
+            logger.error(
+                `Rate Limit Error. Current quota exceeded!`,
+                undefined,
+                undefined,
+                loggerContext,
+            );
+        } else {
+            logger.error(
+                "Error making ChatGPT completion call:",
+                error,
+                undefined,
+                loggerContext,
+            );
+        }
+        return null;
     }
 }
 
@@ -54,7 +71,7 @@ async function sendToWebhook(payload: {
     session: CallSession;
     callSummary: CallSummary;
 }): Promise<boolean> {
-    logger.log("Sending data to webhook:", payload);
+    logger.log("Sending data to webhook:", payload, loggerContext);
     try {
         const response = await axios.post(WEBHOOK_URL, payload, {
             headers: {
@@ -62,13 +79,22 @@ async function sendToWebhook(payload: {
             },
         });
 
-        logger.log("Webhook response:", {
-            status: response.status,
-            data: response.data,
-        });
+        logger.log(
+            "Webhook response:",
+            {
+                status: response.status,
+                data: response.data,
+            },
+            loggerContext,
+        );
         return true;
     } catch (error) {
-        logger.error("Error sending data to webhook:", error);
+        logger.error(
+            "Error sending data to webhook:",
+            error,
+            undefined,
+            loggerContext,
+        );
     }
     return false;
 }
@@ -77,7 +103,11 @@ async function sendToWebhook(payload: {
 export async function processTranscriptAndSend(
     session: CallSession,
 ): Promise<CallSummary | null> {
-    logger.log(`Starting transcript processing for session ${session.id}...`);
+    logger.log(
+        `Starting transcript processing for session ${session.id}...`,
+        undefined,
+        loggerContext,
+    );
     try {
         // Make the ChatGPT completion call
         const callSummary = await extractCallSummary(session);
@@ -88,13 +118,27 @@ export async function processTranscriptAndSend(
                 session,
                 callSummary,
             });
-            logger.log("Extracted and sent customer details:", callSummary);
+            logger.log(
+                "Extracted and sent customer details:",
+                callSummary,
+                loggerContext,
+            );
             return callSummary;
         } else {
-            logger.error("Unexpected response structure from ChatGPT API");
+            logger.error(
+                "Unexpected response structure from ChatGPT API",
+                undefined,
+                undefined,
+                loggerContext,
+            );
         }
     } catch (error) {
-        logger.error("Error in processTranscriptAndSend:", error);
+        logger.error(
+            "Error in processTranscriptAndSend:",
+            error,
+            undefined,
+            loggerContext,
+        );
     }
 
     return null;

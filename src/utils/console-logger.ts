@@ -5,7 +5,10 @@ export class ConsoleLogger {
   lastCount = 0;
   lastLine: string | null = null;
 
-  log(line: string, data?: Record<string, unknown>) {
+  log(line: string, data?: Record<string, unknown>, context?: string) {
+    if (context) {
+      line = `[${context}] ${line}`;
+    }
     if (this.lastLine === line) {
       this.lastCount++;
       this.replaceLastLine(`${line} (${this.lastCount})`);
@@ -28,22 +31,32 @@ export class ConsoleLogger {
     }
   }
 
-  error(line: string, error?: unknown, data?: Record<string, unknown>) {
-    console.error(
-      line,
-      error
-        ? util.inspect(error, {
-            depth: null,
-            colors: true,
-          })
-        : "",
-      data
-        ? util.inspect(data, {
-            depth: null,
-            colors: true,
-          })
-        : "",
-    );
+  error(
+    line: string,
+    error?: unknown,
+    data?: Record<string, unknown>,
+    context?: string,
+  ) {
+    if (context) {
+      line = `[${context}] ${line}`;
+    }
+    console.error(line);
+    if (error) {
+      console.error(
+        util.inspect(error, {
+          depth: null,
+          colors: true,
+        }),
+      );
+    }
+    if (data) {
+      console.error(
+        util.inspect(data, {
+          depth: null,
+          colors: true,
+        }),
+      );
+    }
   }
 
   // Overwrite the last line in the console

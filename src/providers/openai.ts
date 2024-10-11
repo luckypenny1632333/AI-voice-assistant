@@ -3,6 +3,8 @@ import WebSocket from "ws";
 import dotenv from "dotenv";
 import { logger } from "../utils/console-logger";
 
+const loggerContext = "OpenAI";
+
 // Load environment variables from .env file
 dotenv.config();
 
@@ -10,7 +12,12 @@ dotenv.config();
 const { OPENAI_API_KEY } = process.env;
 
 if (!OPENAI_API_KEY) {
-  logger.error("Missing OpenAI API key. Please set it in the .env file.");
+  logger.error(
+    "Missing OpenAI API key. Please set it in the .env file.",
+    undefined,
+    undefined,
+    loggerContext,
+  );
   process.exit(1);
 }
 
@@ -18,7 +25,7 @@ export const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
 });
 
-export const getOpenAiWs = () =>
+export const getOpenAIRealtimeWs = () =>
   new WebSocket(
     "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01",
     {

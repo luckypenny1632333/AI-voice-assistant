@@ -4,6 +4,8 @@ import type { CallSession } from "./types";
 import { processTranscriptAndSend } from "./call-summary";
 import { logger } from "../utils/console-logger";
 
+const loggerContext = "Twilio";
+
 export const handleTwilioMessage = (
   data: WebSocket.RawData,
   session: CallSession,
@@ -18,7 +20,7 @@ export const handleTwilioMessage = (
       } else if (data instanceof ArrayBuffer) {
         return Buffer.from(data).toString("utf-8");
       } else {
-        logger.log("Received unknown data type", { data });
+        logger.log("Received unknown data type", { data }, loggerContext);
       }
     };
 
@@ -49,14 +51,27 @@ export const handleTwilioMessage = (
           //     { data },
           //     { depth: null, colors: true },
           // ),
+          loggerContext,
         );
         break;
       default:
-        logger.log("Received non-media event:", { event: message.event });
+        logger.log(
+          "Received non-media event:",
+          {
+            event: message.event,
+            message,
+          },
+          loggerContext,
+        );
         break;
     }
   } catch (error) {
-    logger.error("Error parsing message", error, { message: data });
+    logger.error(
+      "Error parsing message",
+      error,
+      { message: data },
+      loggerContext,
+    );
   }
 };
 
@@ -67,9 +82,9 @@ export const handleTwilioWsClose = async (
 ) => {
   if (openAiWs.readyState === WebSocket.OPEN) openAiWs.close();
 
-  logger.log(`Client disconnected (${session.id}).`);
-  logger.log("Full Transcript:");
-  logger.log(session.transcript);
+  logger.log(`Client disconnected (${session.id}).`, undefined, loggerContext);
+  logger.log("Full Transcript:", undefined, loggerContext);
+  logger.log(session.transcript, undefined, loggerContext);
 
   const callSummary = await processTranscriptAndSend(session);
 

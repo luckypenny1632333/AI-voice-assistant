@@ -133,4 +133,5 @@ dist
 .breakpoints
 
 # CUSTOM
-/transcripts/
+transcripts/
+dist/
