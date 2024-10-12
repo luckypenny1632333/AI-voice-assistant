@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import Fastify from 'fastify';
 import dotenv from 'dotenv';
 import fastifyFormBody from '@fastify/formbody';
@@ -5,8 +6,7 @@ import fastifyWs from '@fastify/websocket';
 import { logger } from './utils/console-logger';
 import { handleMediaStream, handleIncomingCall, type CallSession } from './call';
 
-// Load environment variables from .env file
-dotenv.config();
+dotenv.config(); // Load environment variables from .env
 
 const loggerContext = 'Server';
 
@@ -30,18 +30,40 @@ fastify.register(async (fastify) => {
 
 // Root Route
 fastify.get('/', async (_request, reply) => {
+    logger.log(`Request GET /`, undefined, loggerContext);
     reply.send({ message: 'Twilio Media Stream Server is running!' });
 });
 
-const PORT = Number(process.env.PORT) ?? 3000;
-fastify.listen({ port: PORT }, (err) => {
-    if (err) {
-        logger.error('Error', err, undefined, loggerContext);
+export const PORT = Number(process.env.PORT) ?? 3000;
+const startServer = async () => {
+    let server: string;
+    try {
+        server = await fastify.listen({ port: PORT });
+        logger.log(
+            `Server is listening on ${server}`,
+            { deployed: process.env.REPLIT_DEPLOYMENT === '1' },
+            loggerContext
+        );
+    } catch (err) {
+        logger.error('Error starting server:', err, undefined, loggerContext);
         process.exit(1);
     }
-    logger.log(
-        `Server is listening on port ${PORT}`,
-        { deployed: process.env.REPLIT_DEPLOYMENT === '1' },
-        loggerContext
-    );
-});
+};
+
+const shutdownServer = async (signal: string) => {
+    logger.log(`Received ${signal}. Shutting down server...`, undefined, loggerContext);
+    try {
+        await fastify.close();
+        logger.log('Server shut down gracefully', undefined, loggerContext);
+        process.exit(0);
+    } catch (err) {
+        logger.error('Error during shutdown:', err, undefined, loggerContext);
+        process.exit(1);
+    }
+};
+
+process.on('SIGINT', () => shutdownServer('SIGINT'));
+process.on('SIGTERM', () => shutdownServer('SIGTERM'));
+process.on('SIGUSR2', () => shutdownServer('SIGUSR2')); // This is often used by nodemon for restarts
+
+startServer();

@@ -1,19 +1,49 @@
+entrypoint = "src/server.ts"
+
 modules = ["nodejs-20", "nix"]
 hidden = [".config", "package-lock.json", "tsconfig.json"]
 run = "npm run dev"
-entrypoint = "server.ts"
-
-[gitHubImport]
-requiredFiles = [".replit", "replit.nix", "package.json", "package-lock.json"]
 
 [nix]
 channel = "stable-24_05"
 
+[gitHubImport]
+requiredFiles = [".replit", "replit.nix", "package.json", "package-lock.json"]
+
 [unitTest]
 language = "nodejs"
 
+[packager]
+language = "nodejs"
+
+[packager.features]
+packageSearch = true
+guessImports = true
+enabledForHosting = false
+
+# [[hints]]
+# regex = "Error \\[ERR_REQUIRE_ESM\\]"
+# message = "We see that you are using require(...) inside your code. We currently do not support this syntax. Please use 'import' instead when using external modules. (https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import)"
+
+# [interpreter]
+# command = [
+#   "prybar-nodejs",
+#   "-q",
+#   "--ps1",
+#   "\u0001\u001B[33m\u0002\u0001\u001B[00m\u0002 ",
+#   "-i",
+# ]
+
+[languages]
+
+[languages.javascript]
+pattern = "**/{*.js,*.jsx,*.ts,*.tsx,*.json}"
+
+[languages.javascript.languageServer]
+start = "typescript-language-server --stdio"
+
 [deployment]
-deploymentTarget = "gce"
+deploymentTarget = "cloudrun" # gce,cloudrun
 ignorePorts = false
 # build = ["sh", "-c", "npm run build"]
 run = ["sh", "-c", "npm run start"]
@@ -22,3 +52,56 @@ run = ["sh", "-c", "npm run start"]
 localPort = 3000
 externalPort = 80
 exposeLocalhost = true
+
+# Debugging
+[debugger]
+support = true
+
+# How to start the debugger.
+[debugger.interactive]
+transport = "localhost:0"
+# startCommand = ["sh", "-c", "npm run debug"]
+startCommand = ["dap-node"]
+
+# How to tell the debugger to start a debugging session.
+[debugger.interactive.initializeMessage]
+command = "initialize"
+type = "request"
+
+[debugger.interactive.initializeMessage.arguments]
+# adapterID = "debugts"
+clientID = "replit"
+clientName = "replit.com"
+columnsStartAt1 = true
+linesStartAt1 = true
+locale = "en-us"
+pathFormat = "path"
+supportsInvalidatedEvent = true
+supportsProgressReporting = true
+supportsRunInTerminalRequest = true
+supportsVariablePaging = true
+supportsVariableType = true
+
+# How to tell the debugger to start the debugger application.
+[debugger.interactive.launchMessage]
+command = "launch" # launch,attach
+type = "request"
+
+[debugger.interactive.launchMessage.arguments]
+# runtimeArgs = ["--import tsx"] # -,["--max-old-space-size=4096"]
+args = []                                        # [],["--import tsx"]
+console = "externalTerminal"                     # externalTerminal,integratedTerminal
+cwd = "."
+environment = []
+pauseForSourceMap = false
+program = "--import tsx --inspect src/server.ts" # "./src/server.ts"
+request = "launch"                               # launch,attach
+sourceMaps = true
+stopOnEntry = false
+type = "pwa-node"                                # pwa-node,node
+# logging = {}
+# port = 9229
+# restart = true
+# skipFiles = ["<node_internals>/**", "./node_modules/**"]
+# protocol = "inspector"
+# internalConsoleOptions = "neverOpen"

@@ -3,10 +3,12 @@ import util from 'util';
 
 export class ConsoleLogger {
   lastCount = 0;
-  lastLine: string | null = null;
+  lastLine?: string;
+  lastData?: string;
+  isLogData = !process.env.REPLIT_DEPLOYMENT;
 
   debug(line: string, data?: Record<string, unknown>, context?: string) {
-    if (!process.env.REPLIT_DEPLOYMENT) {
+    if (!this.isLogData) {
       this.log(line, data, context);
     }
   }
@@ -15,7 +17,7 @@ export class ConsoleLogger {
     if (context) {
       line = `[${context}] ${line}`;
     }
-    if (this.lastLine === line) {
+    if (this.lastLine === line && (!this.isLogData || this.lastData === JSON.stringify(data))) {
       this.lastCount++;
       this.replaceLastLine(`${line} (${this.lastCount})`);
     } else {
@@ -24,10 +26,11 @@ export class ConsoleLogger {
         console.log();
       }
       this.lastLine = line;
+      this.lastData = JSON.stringify(data);
       this.lastCount = 0;
       console.log(
         line,
-        data && !process.env.REPLIT_DEPLOYMENT
+        data && this.isLogData
           ? util.inspect(data, {
               depth: null,
               colors: true,
@@ -37,12 +40,19 @@ export class ConsoleLogger {
     }
   }
 
+  // Overwrite the last line in the console
+  replaceLastLine(text: string) {
+    readline.clearLine(process.stdout, 0); // Clear the last line
+    readline.cursorTo(process.stdout, 0); // Move cursor to the start of the line
+    process.stdout.write(text); // Write the new content
+  }
+
   error(line: string, error?: unknown, data?: Record<string, unknown>, context?: string) {
     if (context) {
       line = `[${context}] ${line}`;
     }
     console.error(line);
-    if (error && !process.env.REPLIT_DEPLOYMENT) {
+    if (error && this.isLogData) {
       console.error(
         util.inspect(error, {
           depth: null,
@@ -50,7 +60,7 @@ export class ConsoleLogger {
         })
       );
     }
-    if (data && !process.env.REPLIT_DEPLOYMENT) {
+    if (data && this.isLogData) {
       console.error(
         util.inspect(data, {
           depth: null,
@@ -58,13 +68,6 @@ export class ConsoleLogger {
         })
       );
     }
-  }
-
-  // Overwrite the last line in the console
-  replaceLastLine(text: string) {
-    readline.clearLine(process.stdout, 0); // Clear the last line
-    readline.cursorTo(process.stdout, 0); // Move cursor to the start of the line
-    process.stdout.write(text); // Write the new content
   }
 }
 

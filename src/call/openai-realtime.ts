@@ -2,9 +2,9 @@ import type WebSocket from 'ws';
 import type { RealtimeClient } from '@openai/realtime-api-beta';
 import { getDuration } from '../utils/datetime';
 import { logger } from '../utils/console-logger';
-import { getStringFromRawData } from '../utils/websocket';
 import type { CallSession } from './types';
 import { getSystemMessage, VOICE } from './agent/agent';
+import { agentTools } from './agent/tools';
 import { endCall } from '../providers/twilio';
 
 // List of Event Types to log to the console
@@ -22,13 +22,68 @@ const LOG_EVENT_TYPES = [
     'conversation.item.input_audio_transcription.completed',
     // "response.audio_transcript.delta",
 ];
-// TODO: add suffix ` (num)` of same stdout line count
 const LOG_EVENT_TYPES_EXCLUDE = [
     'response.audio.delta', // raw audio of same `response.audio_transcript.delta` item_id
     'response.audio_transcript.delta',
 ];
 
 const loggerContext = 'OpenAI';
+
+export const setupOpenAIRealtimeClient = (
+    openAIRealtimeClient: RealtimeClient,
+    twilioWs: WebSocket,
+    session: CallSession
+) => {
+    // Listen for messages from the OpenAI WebSocket
+    openAIRealtimeClient.realtime.on('server.*', (data: any) => {
+        // logger.log(`DEBUG realtime server.*: ${sessionId}`, data, loggerContext);
+        handleOpenAIMessage(data, session, twilioWs);
+    });
+
+    // Handle WebSocket close and errors
+    openAIRealtimeClient.realtime.on('close', handleOpenAIRealtimeClose);
+    openAIRealtimeClient.realtime.on('error', handleOpenAIRealtimeError);
+
+    // // all events, can use for logging, debugging, or manual event handling
+    // openAIRealtimeClient.on(
+    //   'realtime.event',
+    //   ({ time, source, event }: { time: string; source: 'server' | 'client'; event: any }) => {
+    //     // time is an ISO timestamp
+    //     // source is 'client' or 'server'
+    //     // event is the raw event payload (json)
+    //     logger.log(`DEBUG realtime.event`, { time, source, event }, loggerContext);
+    //   }
+    // );
+    // openAIRealtimeClient.on('conversation.interrupted', ({ ...rest }: any) => {
+    //   logger.log(`DEBUG conversation.interrupted`, rest, loggerContext);
+    // });
+    // openAIRealtimeClient.on('conversation.updated', ({ ...rest }: any) => {
+    //   logger.log(`DEBUG conversation.updated`, rest, loggerContext);
+    // });
+    // openAIRealtimeClient.on('conversation.item.appended', ({ ...rest }: any) => {
+    //   logger.log(`DEBUG conversation.item.appended`, rest, loggerContext);
+    // });
+    // openAIRealtimeClient.on('conversation.item.completed', ({ ...rest }: any) => {
+    //   logger.log(`DEBUG conversation.item.completed`, rest, loggerContext);
+    // });
+    // openAIRealtimeClient.realtime.on('client.*', ({ ...rest }: any) =>
+    //   logger.log(`DEBUG realtime client.*: ${sessionId}`, rest, loggerContext)
+    // );
+
+    openAIRealtimeClient
+        .connect()
+        .then((res) => {
+            logger.log(
+                `Connected to OpenAI Realtime: ${res} ${openAIRealtimeClient.realtime.isConnected()}`,
+                undefined,
+                loggerContext
+            );
+            handleOpenAIRealtimeConnected(openAIRealtimeClient, session);
+        })
+        .catch((err) =>
+            logger.error('Error connecting to OpenAI Realtime API', err, undefined, loggerContext)
+        );
+};
 
 const sendSessionUpdate = (openAIRealtimeClient: RealtimeClient, session: CallSession) => {
     logger.log(
@@ -58,6 +113,12 @@ const sendSessionUpdate = (openAIRealtimeClient: RealtimeClient, session: CallSe
         });
 };
 
+const addTools = (openAIRealtimeClient: RealtimeClient, session: CallSession) => {
+    agentTools.forEach((tool) =>
+        openAIRealtimeClient.addTool(tool.definition, tool.handler(openAIRealtimeClient, session))
+    );
+};
+
 const sendInitiateConversation = (openAIRealtimeClient: RealtimeClient) => {
     logger.log(
         'Sending initiate conversation',
@@ -65,44 +126,40 @@ const sendInitiateConversation = (openAIRealtimeClient: RealtimeClient) => {
         loggerContext
     );
     openAIRealtimeClient.sendUserMessageContent([{ type: 'input_text', text: `Hallo!` }]);
-
-    // openAiWs.send(JSON.stringify(initiateConversation));
-    // openAiWs.send(JSON.stringify({ type: "response.create" }));
 };
 
-export const handleOpenAIRealtimeWsOpen = (
+export const handleOpenAIRealtimeConnected = (
     openAIRealtimeClient: RealtimeClient,
     session: CallSession
 ) => {
     logger.log('Connected to the OpenAI Realtime API', undefined, loggerContext);
-    setTimeout(() => sendSessionUpdate(openAIRealtimeClient, session), 250);
+    sendSessionUpdate(openAIRealtimeClient, session);
+    addTools(openAIRealtimeClient, session);
+
     setTimeout(() => sendInitiateConversation(openAIRealtimeClient), 500);
 };
 
-export const handleOpenAIRealtimeWsClose = (code: number, reason: Buffer) => {
+export const handleOpenAIRealtimeClose = (code: number, reason?: Buffer) => {
     logger.log(
         'Disconnected from the OpenAI Realtime API',
         {
             code,
-            reason: reason.toString(),
+            reason: reason?.toString(),
         },
         loggerContext
     );
 };
 
-export const handleOpenAIRealtimeWsError = (error: Error) => {
+export const handleOpenAIRealtimeError = (error: Error) => {
     logger.error('Error in the OpenAI WebSocket:', error, undefined, loggerContext);
 };
 
 export const handleOpenAIMessage = (
-    data: WebSocket.RawData,
-    isBinary: boolean,
+    message: any,
     session: CallSession,
     mediaStreamWs: WebSocket
 ) => {
     try {
-        const message = JSON.parse(getStringFromRawData(data) ?? '{}');
-
         const timePrefix = `[${getDuration(session.createdAt)}]`;
 
         // Log received events
@@ -196,6 +253,6 @@ export const handleOpenAIMessage = (
             mediaStreamWs.send(JSON.stringify(audioDelta));
         }
     } catch (error) {
-        logger.error('Error processing OpenAI message', error, { data }, loggerContext);
+        logger.error('Error processing OpenAI message', error, { message }, loggerContext);
     }
 };

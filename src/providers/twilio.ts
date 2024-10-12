@@ -1,15 +1,18 @@
-import { logger } from "../utils/console-logger";
+import dotenv from 'dotenv';
+import { logger } from '../utils/console-logger';
 import {
     serviceUnavailableMessage,
     serviceUnavailableMessageLanguage,
-} from "../service-unavailable-message";
+} from '../config/serviceUnavailableMessage';
 
-const loggerContext = "Twilio";
+const loggerContext = 'Twilio';
+
+dotenv.config(); // Load environment variables from .env
 
 export const getTwilioMLResponse = (
     url: string,
     connectionMessage: string,
-    parameters: Record<string, Record<string, undefined>>,
+    parameters: Record<string, Record<string, undefined>>
 ) => `<?xml version="1.0" encoding="UTF-8"?>
       <Response>
           ${connectionMessage}
@@ -18,9 +21,9 @@ export const getTwilioMLResponse = (
                   ${Object.entries(parameters)
                       .map(
                           ([key, value]) =>
-                              `<Parameter name="${key}" value="\\${encodeURIComponent(JSON.stringify(value))}" />`,
+                              `<Parameter name="${key}" value="\\${encodeURIComponent(JSON.stringify(value))}" />`
                       )
-                      .join("")}
+                      .join('')}
               </Stream>
           </Connect>
       </Response>`;
@@ -40,19 +43,16 @@ export const endCall = async (callSid: string) => {
     const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls/${callSid}.json`;
 
     const params = new URLSearchParams();
-    params.append("Twiml", twilioMLErrorResponse);
+    params.append('Twiml', twilioMLErrorResponse);
 
     // Make the HTTP request to Twilio REST API
     try {
         const response = await fetch(url, {
-            method: "POST",
+            method: 'POST',
             headers: {
                 Authorization:
-                    "Basic " +
-                    Buffer.from(accountSid + ":" + authToken).toString(
-                        "base64",
-                    ),
-                "Content-Type": "application/x-www-form-urlencoded",
+                    'Basic ' + Buffer.from(accountSid + ':' + authToken).toString('base64'),
+                'Content-Type': 'application/x-www-form-urlencoded',
             },
             body: params.toString(),
         });
@@ -61,7 +61,7 @@ export const endCall = async (callSid: string) => {
             logger.log(
                 `Call ${callSid} ended with TwiML message.`,
                 undefined, // { response },
-                loggerContext,
+                loggerContext
             );
         } else {
             const responseText = await response.text();
@@ -69,15 +69,10 @@ export const endCall = async (callSid: string) => {
                 `Failed to update call ${callSid}: ${response.status} - ${responseText}`,
                 undefined,
                 undefined,
-                loggerContext,
+                loggerContext
             );
         }
     } catch (err) {
-        logger.error(
-            `Failed to update call ${callSid}:`,
-            err,
-            undefined,
-            loggerContext,
-        );
+        logger.error(`Failed to update call ${callSid}:`, err, undefined, loggerContext);
     }
 };

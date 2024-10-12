@@ -1,10 +1,33 @@
 import type WebSocket from 'ws';
-import type { RealtimeClient } from '@openai/realtime-api-beta';
+import { type RealtimeClient, RealtimeUtils } from '@openai/realtime-api-beta';
 import type { CallSession } from './types';
 import { processTranscriptAndSend } from './call-summary';
 import { logger } from '../utils/console-logger';
+import { randomUUID } from 'crypto';
 
 const loggerContext = 'Twilio';
+
+const LOG_EVENT_TYPES_EXCLUDE = ['media'];
+
+export const setupTwilioEventHandler = (
+  twilioWs: WebSocket,
+  openAIRealtimeClient: RealtimeClient,
+  session: CallSession,
+  sessions: Map<string, CallSession>
+) => {
+  // Handle incoming messages from Twilio
+  twilioWs.on('message', (data) => handleTwilioMessage(data, session, openAIRealtimeClient));
+
+  // Handle connection close and log transcript
+  twilioWs.on('close', () => handleTwilioWsClose(openAIRealtimeClient, session, sessions));
+
+  twilioWs.on('error', async (error) => {
+    logger.error('Error in Twilio WebSocket:', error, undefined, loggerContext);
+
+    // Close the WebSocket connection
+    twilioWs.close();
+  });
+};
 
 export const handleTwilioMessage = (
   data: WebSocket.RawData,
@@ -24,17 +47,23 @@ export const handleTwilioMessage = (
 
     const message = JSON.parse(getStringFromRawData(data) ?? '{}');
 
+    if (!LOG_EVENT_TYPES_EXCLUDE.includes(message.event)) {
+      logger.log(`Received event: ${message.event}`, message, loggerContext);
+    }
+
     switch (message.event) {
       case 'media':
         if (openAIRealtimeClient.isConnected()) {
-          // const audioAppend = {
-          //   type: "input_audio_buffer.append",
-          //   audio: message.media.payload,
-          // };
-
-          openAIRealtimeClient.appendInputAudio(message.media.payload);
-
-          // openAiWs.send(JSON.stringify(audioAppend));
+          // logger.log(`Received ${message.media.track} media event`, message, loggerContext);
+          openAIRealtimeClient.appendInputAudio(
+            RealtimeUtils.base64ToArrayBuffer(message.media.payload)
+          );
+        } else {
+          logger.log(
+            `Dropped ${message.media.track} media event: OpenAI Realtime API not connected`,
+            undefined,
+            loggerContext
+          );
         }
         break;
       case 'start':
@@ -42,13 +71,14 @@ export const handleTwilioMessage = (
         session.incomingCall = JSON.parse(
           decodeURIComponent(message.start.customParameters.incomingCall.slice(1))
         );
+        session.userId = session.incomingCall?.Caller ?? randomUUID();
         logger.log(
           'Incoming stream has started',
-          { streamSid: session.streamSid, incomingCall: session.incomingCall },
-          // util.inspect(
-          //     { data },
-          //     { depth: null, colors: true },
-          // ),
+          {
+            streamSid: session.streamSid,
+            incomingCall: session.incomingCall,
+            userId: session.userId,
+          },
           loggerContext
         );
         break;

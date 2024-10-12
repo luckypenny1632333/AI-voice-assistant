@@ -1,21 +1,20 @@
-import OpenAI from "openai";
-import dotenv from "dotenv";
-import { logger } from "../utils/console-logger";
+import OpenAI from 'openai';
+import dotenv from 'dotenv';
+import { logger } from '../utils/console-logger';
 
-const loggerContext = "OpenAI";
+const loggerContext = 'OpenAI';
 
-// Load environment variables from .env file
-dotenv.config();
+dotenv.config(); // Load environment variables from .env
 
 // Retrieve the OpenAI API key from environment variables
 const { OPENAI_API_KEY } = process.env;
 
 if (!OPENAI_API_KEY) {
   logger.error(
-    "Missing OpenAI API key. Please set it in the .env file.",
+    'Missing OpenAI API key. Please set it in the .env file.',
     undefined,
     undefined,
-    loggerContext,
+    loggerContext
   );
   process.exit(1);
 }
@@ -23,4 +22,3 @@ if (!OPENAI_API_KEY) {
 export const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
 });
-
