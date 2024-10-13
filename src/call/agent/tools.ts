@@ -5,9 +5,8 @@ import axios from 'axios';
 import TurndownService from 'turndown';
 import * as cheerio from 'cheerio';
 
-import type { CallSession } from '../types';
-import { KeyValueStoreService } from '../../services/key-value-store/key-value-store.service';
-import { APP_CLIENT_ID } from '../../config/appClientId';
+import { CallSessionService, type CallSession } from '../../services/call-session';
+import { getStoreBySession } from '../../services/key-value-store';
 import { logger } from '../../utils/console-logger';
 
 const loggerContext = 'Tools';
@@ -73,8 +72,8 @@ export const agentTools: Array<FunctionCallTool> = [
       onTool(
         args,
         ({ key, value }: { [key: string]: any }) => {
-          const keyValueService = new KeyValueStoreService(APP_CLIENT_ID);
-          keyValueService.setKeyValue(key, value, session.userId);
+          const callerId = CallSessionService.getCallerId(session);
+          getStoreBySession(session).setKeyValue(key, value, callerId);
           return { success: true };
         },
         'Error setting memory'
@@ -101,8 +100,8 @@ export const agentTools: Array<FunctionCallTool> = [
       onTool(
         args,
         ({ key }: { key: string }) => {
-          const keyValueService = new KeyValueStoreService(APP_CLIENT_ID);
-          keyValueService.deleteKey(key, session.userId);
+          const callerId = CallSessionService.getCallerId(session);
+          getStoreBySession(session).deleteKey(key, callerId);
           return { success: true };
         },
         'Error removing memory'

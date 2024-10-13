@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import fastifyFormBody from '@fastify/formbody';
 import fastifyWs from '@fastify/websocket';
 import { logger } from './utils/console-logger';
-import { handleMediaStream, handleIncomingCall, type CallSession } from './call';
+import { handleMediaStream, handleIncomingCall } from './call';
 
 dotenv.config(); // Load environment variables from .env
 
@@ -15,16 +15,13 @@ const fastify = Fastify();
 fastify.register(fastifyFormBody);
 fastify.register(fastifyWs);
 
-// Session management
-const sessions = new Map<string, CallSession>();
-
 // Route for Twilio to handle incoming and outgoing calls
 fastify.all('/incoming-call', handleIncomingCall);
 
 // WebSocket route for media-stream
 fastify.register(async (fastify) => {
     fastify.get('/media-stream', { websocket: true }, (twilioWs, req) =>
-        handleMediaStream(twilioWs, req, sessions)
+        handleMediaStream(twilioWs, req)
     );
 });
 

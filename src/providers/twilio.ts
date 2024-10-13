@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { logger } from '../utils/console-logger';
+import { getLanguageByCountryCode } from '../utils/get-language-by-country-code';
 import {
     serviceUnavailableMessage,
     serviceUnavailableMessageLanguage,
@@ -28,14 +29,16 @@ export const getTwilioMLResponse = (
           </Connect>
       </Response>`;
 
-export const twilioMLErrorResponse = `<?xml version="1.0" encoding="UTF-8"?>
+export const twilioMLErrorResponse = (
+    language: string = serviceUnavailableMessageLanguage
+) => `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Say language="${serviceUnavailableMessageLanguage}">${serviceUnavailableMessage}</Say>
+    <Say language="${language}">${serviceUnavailableMessage}</Say>
     <Pause length="1" />
     <Hangup />
-</Response>`;
+</Response>`; // TODO translate serviceUnavailableMessage to serviceUnavailableMessageLanguage
 
-export const endCall = async (callSid: string) => {
+export const endCall = async (callSid: string, callerCountry: string) => {
     // Twilio credentials
     const accountSid = process.env.TWILIO_ACCOUNT_SID!;
     const authToken = process.env.TWILIO_AUTH_TOKEN!;
@@ -43,7 +46,7 @@ export const endCall = async (callSid: string) => {
     const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Calls/${callSid}.json`;
 
     const params = new URLSearchParams();
-    params.append('Twiml', twilioMLErrorResponse);
+    params.append('Twiml', twilioMLErrorResponse(getLanguageByCountryCode(callerCountry)));
 
     // Make the HTTP request to Twilio REST API
     try {

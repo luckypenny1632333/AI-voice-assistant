@@ -5,7 +5,7 @@ import { Repository } from 'typeorm';
 export class KeyValueStoreService {
   private repository!: Repository<KeyValueStore>;
 
-  constructor(private readonly client: string) {
+  constructor(private readonly app: string) {
     // Ensure that the DataSource is initialized before accessing the repository
     if (!AppDataSource.isInitialized) {
       AppDataSource.initialize()
@@ -25,14 +25,14 @@ export class KeyValueStoreService {
   // Method to set a key-value pair
   async setKeyValue(key: string, value: string, keyPrefix?: string): Promise<void> {
     const existingEntry = await this.repository.findOne({
-      where: { client: this.client, key: this.buildKey(key, keyPrefix) },
+      where: { app: this.app, key: this.buildKey(key, keyPrefix) },
     });
 
     if (existingEntry) {
       existingEntry.value = value;
       await this.repository.save(existingEntry);
     } else {
-      const newEntry = this.repository.create({ client: this.client, key, value });
+      const newEntry = this.repository.create({ app: this.app, key, value });
       await this.repository.save(newEntry);
     }
   }
@@ -40,7 +40,7 @@ export class KeyValueStoreService {
   // Method to get a value by key
   async getValue(key: string, keyPrefix?: string): Promise<string | null> {
     const entry = await this.repository.findOne({
-      where: { client: this.client, key: this.buildKey(key, keyPrefix) },
+      where: { app: this.app, key: this.buildKey(key, keyPrefix) },
     });
     return entry ? entry.value : null;
   }
@@ -48,13 +48,13 @@ export class KeyValueStoreService {
   // Method to get a value by key
   async getAll(key: string, keyPrefix?: string): Promise<string[] | null> {
     const entry = await this.repository.find({
-      where: { client: this.client, key: this.buildKey(key, keyPrefix) },
+      where: { app: this.app, key: this.buildKey(key, keyPrefix) },
     });
     return entry ? entry.map((e) => e.value) : null;
   }
 
   // Method to delete a key-value pair
   async deleteKey(key: string, keyPrefix?: string): Promise<void> {
-    await this.repository.delete({ client: this.client, key: this.buildKey(key, keyPrefix) });
+    await this.repository.delete({ app: this.app, key: this.buildKey(key, keyPrefix) });
   }
 }

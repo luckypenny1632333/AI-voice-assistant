@@ -1,12 +1,14 @@
-import { CallSummarySchema, type CallSession, type CallSummary } from './types';
+import { CallSummarySchema, type CallSummary } from './types';
 import { zodResponseFormat } from 'openai/helpers/zod';
 import { pick } from 'lodash-es';
 import { openai } from '../providers/openai';
 import { RateLimitError } from 'openai';
+import dotenv from 'dotenv';
 import axios from 'axios';
 import { logger } from '../utils/console-logger';
+import type { CallSession } from '../services/call-session';
 
-const WEBHOOK_URL = 'https://lx0.app.n8n.cloud/webhook/call-completion';
+dotenv.config(); // Load environment variables from .env
 
 const loggerContext = 'CallSummary';
 
@@ -57,13 +59,17 @@ async function sendToWebhook(payload: {
     session: CallSession;
     callSummary: CallSummary;
 }): Promise<boolean> {
+    if (!process.env.WEBHOOK_URL) {
+        logger.error('WEBHOOK_URL not defined', undefined, undefined, loggerContext);
+        return false;
+    }
     logger.log(
         'Sending data to webhook',
         undefined, // payload,
         loggerContext
     );
     try {
-        const response = await axios.post(WEBHOOK_URL, payload, {
+        const response = await axios.post(process.env.WEBHOOK_URL, payload, {
             headers: {
                 'Content-Type': 'application/json',
             },

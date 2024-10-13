@@ -2,7 +2,7 @@ import type WebSocket from 'ws';
 import type { RealtimeClient } from '@openai/realtime-api-beta';
 import { getDuration } from '../utils/datetime';
 import { logger } from '../utils/console-logger';
-import type { CallSession } from './types';
+import type { CallSession } from '../services/call-session';
 import { getSystemMessage, VOICE } from './agent/agent';
 import { agentTools } from './agent/tools';
 import { endCall } from '../providers/twilio';
@@ -37,7 +37,7 @@ export const setupOpenAIRealtimeClient = (
     // Listen for messages from the OpenAI WebSocket
     openAIRealtimeClient.realtime.on('server.*', (data: any) => {
         // logger.log(`DEBUG realtime server.*: ${sessionId}`, data, loggerContext);
-        handleOpenAIMessage(data, session, twilioWs);
+        handleOpenAIMessage(openAIRealtimeClient, data, session, twilioWs);
     });
 
     // Handle WebSocket close and errors
@@ -54,20 +54,20 @@ export const setupOpenAIRealtimeClient = (
     //     logger.log(`DEBUG realtime.event`, { time, source, event }, loggerContext);
     //   }
     // );
-    // openAIRealtimeClient.on('conversation.interrupted', ({ ...rest }: any) => {
-    //   logger.log(`DEBUG conversation.interrupted`, rest, loggerContext);
-    // });
-    // openAIRealtimeClient.on('conversation.updated', ({ ...rest }: any) => {
-    //   logger.log(`DEBUG conversation.updated`, rest, loggerContext);
-    // });
-    // openAIRealtimeClient.on('conversation.item.appended', ({ ...rest }: any) => {
-    //   logger.log(`DEBUG conversation.item.appended`, rest, loggerContext);
-    // });
-    // openAIRealtimeClient.on('conversation.item.completed', ({ ...rest }: any) => {
-    //   logger.log(`DEBUG conversation.item.completed`, rest, loggerContext);
-    // });
+    openAIRealtimeClient.on('conversation.interrupted', ({ ...rest }: any) => {
+        logger.log(`Received event: conversation.interrupted`, rest, loggerContext);
+    });
+    openAIRealtimeClient.on('conversation.updated', ({ ...rest }: any) => {
+        logger.log(`Received event: conversation.updated`, rest, loggerContext);
+    });
+    openAIRealtimeClient.on('conversation.item.appended', ({ ...rest }: any) => {
+        logger.log(`Received event: conversation.item.appended`, rest, loggerContext);
+    });
+    openAIRealtimeClient.on('conversation.item.completed', ({ ...rest }: any) => {
+        logger.log(`Received event: conversation.item.completed`, rest, loggerContext);
+    });
     // openAIRealtimeClient.realtime.on('client.*', ({ ...rest }: any) =>
-    //   logger.log(`DEBUG realtime client.*: ${sessionId}`, rest, loggerContext)
+    //   logger.log(`Received event: realtime client.*: ${session.id}`, rest, loggerContext)
     // );
 
     openAIRealtimeClient
@@ -155,6 +155,7 @@ export const handleOpenAIRealtimeError = (error: Error) => {
 };
 
 export const handleOpenAIMessage = (
+    openAIRealtimeClient: RealtimeClient,
     message: any,
     session: CallSession,
     mediaStreamWs: WebSocket
@@ -221,7 +222,7 @@ export const handleOpenAIMessage = (
 
                 // disconnect call
                 if (session.incomingCall?.CallSid) {
-                    endCall(session.incomingCall.CallSid)
+                    endCall(session.incomingCall.CallSid, session.incomingCall.CallerCountry)
                         .then(() => {
                             logger.log(
                                 `Call ${session.incomingCall?.CallSid} ended`,
@@ -251,6 +252,23 @@ export const handleOpenAIMessage = (
                 },
             };
             mediaStreamWs.send(JSON.stringify(audioDelta));
+        }
+
+        if (message.type === 'input_audio_buffer.speech_started') {
+            logger.log('Speech Start:', message.type, loggerContext);
+
+            // Clear any ongoing speech on Twilio side
+            mediaStreamWs.send(
+                JSON.stringify({
+                    streamSid: session.streamSid,
+                    event: 'clear',
+                })
+            );
+
+            logger.log('Cancelling AI speech from the server', undefined, loggerContext);
+
+            // Send interrupt message to OpenAI to cancel ongoing response
+            openAIRealtimeClient.realtime.send('response.cancel', {});
         }
     } catch (error) {
         logger.error('Error processing OpenAI message', error, { message }, loggerContext);

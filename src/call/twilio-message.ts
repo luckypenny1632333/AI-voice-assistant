@@ -1,9 +1,8 @@
 import type WebSocket from 'ws';
 import { type RealtimeClient, RealtimeUtils } from '@openai/realtime-api-beta';
-import type { CallSession } from './types';
 import { processTranscriptAndSend } from './call-summary';
 import { logger } from '../utils/console-logger';
-import { randomUUID } from 'crypto';
+import { callSessionService, type CallSession } from '../services/call-session';
 
 const loggerContext = 'Twilio';
 
@@ -12,14 +11,13 @@ const LOG_EVENT_TYPES_EXCLUDE = ['media'];
 export const setupTwilioEventHandler = (
   twilioWs: WebSocket,
   openAIRealtimeClient: RealtimeClient,
-  session: CallSession,
-  sessions: Map<string, CallSession>
+  session: CallSession
 ) => {
   // Handle incoming messages from Twilio
   twilioWs.on('message', (data) => handleTwilioMessage(data, session, openAIRealtimeClient));
 
   // Handle connection close and log transcript
-  twilioWs.on('close', () => handleTwilioWsClose(openAIRealtimeClient, session, sessions));
+  twilioWs.on('close', () => handleTwilioWsClose(openAIRealtimeClient, session));
 
   twilioWs.on('error', async (error) => {
     logger.error('Error in Twilio WebSocket:', error, undefined, loggerContext);
@@ -71,13 +69,11 @@ export const handleTwilioMessage = (
         session.incomingCall = JSON.parse(
           decodeURIComponent(message.start.customParameters.incomingCall.slice(1))
         );
-        session.userId = session.incomingCall?.Caller ?? randomUUID();
         logger.log(
           'Incoming stream has started',
           {
             streamSid: session.streamSid,
             incomingCall: session.incomingCall,
-            userId: session.userId,
           },
           loggerContext
         );
@@ -100,8 +96,7 @@ export const handleTwilioMessage = (
 
 export const handleTwilioWsClose = async (
   openAIRealtimeClient: RealtimeClient,
-  session: CallSession,
-  sessions: Map<string, CallSession>
+  session: CallSession
 ) => {
   if (openAIRealtimeClient.isConnected()) openAIRealtimeClient.disconnect();
 
@@ -111,5 +106,5 @@ export const handleTwilioWsClose = async (
   await processTranscriptAndSend(session);
 
   // Clean up the session
-  sessions.delete(session.id);
+  callSessionService.stopSession(session.id);
 };

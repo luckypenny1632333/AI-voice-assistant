@@ -1,2 +1,1 @@
-export * from "./call-session";
-export * from "./call-summary";
+export * from './call-summary';

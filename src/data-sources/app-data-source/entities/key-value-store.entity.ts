@@ -3,7 +3,7 @@ import { Entity, Column, PrimaryColumn } from 'typeorm';
 @Entity('key_value_store')
 export class KeyValueStore {
   @PrimaryColumn({ type: 'text' })
-  client!: string;
+  app!: string;
 
   @PrimaryColumn({ type: 'text' })
   key!: string;
