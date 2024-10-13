@@ -1,12 +1,9 @@
 import 'reflect-metadata';
 import Fastify from 'fastify';
-import dotenv from 'dotenv';
 import fastifyFormBody from '@fastify/formbody';
 import fastifyWs from '@fastify/websocket';
 import { logger } from './utils/console-logger';
 import { handleMediaStream, handleIncomingCall } from './call';
-
-dotenv.config(); // Load environment variables from .env
 
 const loggerContext = 'Server';
 
@@ -31,7 +28,7 @@ fastify.get('/', async (_request, reply) => {
     reply.send({ message: 'Twilio Media Stream Server is running!' });
 });
 
-export const PORT = Number(process.env.PORT) ?? 3000;
+export const PORT = parseInt(process.env.PORT ?? '3000');
 const startServer = async () => {
     let server: string;
     try {
