@@ -72,8 +72,7 @@ export const agentTools: Array<FunctionCallTool> = [
       onTool(
         args,
         ({ key, value }: { [key: string]: any }) => {
-          const callerId = CallSessionService.getCallerId(session);
-          getStoreBySession(session).setKeyValue(key, value, callerId);
+          getStoreBySession(session).setKeyValue(key, value);
           return { success: true };
         },
         'Error setting memory'
@@ -100,8 +99,7 @@ export const agentTools: Array<FunctionCallTool> = [
       onTool(
         args,
         ({ key }: { key: string }) => {
-          const callerId = CallSessionService.getCallerId(session);
-          getStoreBySession(session).deleteKey(key, callerId);
+          getStoreBySession(session).deleteKey(key);
           return { success: true };
         },
         'Error removing memory'

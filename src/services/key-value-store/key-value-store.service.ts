@@ -5,7 +5,10 @@ import { Repository } from 'typeorm';
 export class KeyValueStoreService {
   private repository!: Repository<KeyValueStore>;
 
-  constructor(private readonly app: string) {
+  constructor(
+    private readonly app: string,
+    private readonly keyPrefix?: string
+  ) {
     // Ensure that the DataSource is initialized before accessing the repository
     if (!AppDataSource.isInitialized) {
       AppDataSource.initialize()
@@ -18,14 +21,14 @@ export class KeyValueStoreService {
     }
   }
 
-  private buildKey(key: string, keyPrefix?: string): string {
-    return keyPrefix ? `${keyPrefix}__${key}` : key;
+  private buildKey(key: string): string {
+    return this.keyPrefix ? `${this.keyPrefix}__${key}` : key;
   }
 
   // Method to set a key-value pair
-  async setKeyValue(key: string, value: string, keyPrefix?: string): Promise<void> {
+  async setKeyValue(key: string, value: string): Promise<void> {
     const existingEntry = await this.repository.findOne({
-      where: { app: this.app, key: this.buildKey(key, keyPrefix) },
+      where: { app: this.app, key: this.buildKey(key) },
     });
 
     if (existingEntry) {
@@ -38,23 +41,23 @@ export class KeyValueStoreService {
   }
 
   // Method to get a value by key
-  async getValue(key: string, keyPrefix?: string): Promise<string | null> {
+  async getValue(key: string): Promise<string | null> {
     const entry = await this.repository.findOne({
-      where: { app: this.app, key: this.buildKey(key, keyPrefix) },
+      where: { app: this.app, key: this.buildKey(key) },
     });
     return entry ? entry.value : null;
   }
 
   // Method to get a value by key
-  async getAll(key: string, keyPrefix?: string): Promise<string[] | null> {
+  async getAll(key: string): Promise<string[] | null> {
     const entry = await this.repository.find({
-      where: { app: this.app, key: this.buildKey(key, keyPrefix) },
+      where: { app: this.app, key: this.buildKey(key) },
     });
     return entry ? entry.map((e) => e.value) : null;
   }
 
   // Method to delete a key-value pair
-  async deleteKey(key: string, keyPrefix?: string): Promise<void> {
-    await this.repository.delete({ app: this.app, key: this.buildKey(key, keyPrefix) });
+  async deleteKey(key: string): Promise<void> {
+    await this.repository.delete({ app: this.app, key: this.buildKey(key) });
   }
 }

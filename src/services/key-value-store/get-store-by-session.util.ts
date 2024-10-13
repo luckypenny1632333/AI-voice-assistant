@@ -7,5 +7,5 @@ export const getStoreBySession = (session: CallSession): KeyValueStoreService =>
   if (!appId || !callerId) {
     throw new Error(`KeyValueStoreService cannot be initialized: App ID or caller ID not defined.`);
   }
-  return new KeyValueStoreService(appId);
+  return new KeyValueStoreService(appId, callerId);
 };
