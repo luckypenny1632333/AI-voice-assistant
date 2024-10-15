@@ -1,6 +1,6 @@
-import { AppDataSource } from '../../data-sources/app-data-source/app-data-source';
-import { KeyValueStore } from '../../data-sources/app-data-source/entities/key-value-store.entity';
 import { Repository } from 'typeorm';
+
+import { AppDataSource, KeyValueStore } from '@/data-sources/app-data-source';
 
 export class KeyValueStoreService {
   private repository!: Repository<KeyValueStore>;

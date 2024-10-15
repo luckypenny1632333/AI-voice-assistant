@@ -1,10 +1,10 @@
 /* eslint-disable no-console */
 
 enum LogType {
-  DEBUG = "DEBUG",
-  WARN = "WARN",
-  ERROR = "ERROR",
-  INFO = "INFO",
+  DEBUG = 'DEBUG',
+  WARN = 'WARN',
+  ERROR = 'ERROR',
+  INFO = 'INFO',
   // LOG = 'LOG',
 }
 
@@ -34,11 +34,11 @@ export class Logger {
     };
 
     this.config = {
-      debugContexts: _config.debugContexts ?? new Set(["**"]),
-      defaultContext: _config.defaultContext ?? "App",
+      debugContexts: _config.debugContexts ?? new Set(['**']),
+      defaultContext: _config.defaultContext ?? 'App',
     };
 
-    this.debug("📝 ~ Logger initialized ~", this.constructor.name);
+    this.debug('📝 ~ Logger initialized ~', this.constructor.name);
   }
 
   public info(message: string, context?: LoggerContext) {
@@ -54,15 +54,15 @@ export class Logger {
     message: string,
     error?: unknown,
     data?: Record<string, unknown>,
-    context?: LoggerContext,
+    context?: LoggerContext
   ): void;
   public error(
     message: string,
     error?: unknown,
     dataOrContext?: Record<string, unknown> | LoggerContext,
-    context?: LoggerContext,
+    context?: LoggerContext
   ): void {
-    if (typeof dataOrContext === "string" || Array.isArray(dataOrContext)) {
+    if (typeof dataOrContext === 'string' || Array.isArray(dataOrContext)) {
       this._log(message, LogType.ERROR, dataOrContext, undefined, error);
       return;
     }
@@ -70,17 +70,13 @@ export class Logger {
   }
 
   public debug(message: string, context?: LoggerContext): void;
-  public debug(
-    message: string,
-    data: Record<string, unknown>,
-    context?: LoggerContext,
-  ): void;
+  public debug(message: string, data: Record<string, unknown>, context?: LoggerContext): void;
   public debug(
     message: string,
     dataOrContext?: Record<string, unknown> | LoggerContext,
-    context?: LoggerContext,
+    context?: LoggerContext
   ): void {
-    if (typeof dataOrContext === "string" || Array.isArray(dataOrContext)) {
+    if (typeof dataOrContext === 'string' || Array.isArray(dataOrContext)) {
       this._log(message, LogType.DEBUG, dataOrContext);
       return;
     }
@@ -92,61 +88,58 @@ export class Logger {
     type = LogType.INFO,
     context: LoggerContext = this.config.defaultContext,
     data?: Record<string, unknown>,
-    error?: unknown,
+    error?: unknown
   ) {
     if (!this.shouldLog(type, context)) {
       return;
     }
 
-    const _context = this.context(context).join(":");
+    const _context = this.context(context).join(':');
 
     switch (type) {
       case LogType.DEBUG:
         // console.group('debug');
-        console.log(`[${_context}] DEBUG: ${message}`, data ?? " ");
+        console.log(`[${_context}] DEBUG: ${message}`, data ?? ' ');
         // console.groupEnd();
         break;
       case LogType.WARN:
-        console.warn(`${_context}] WARN: [${message}`, data ?? " ");
+        console.warn(`${_context}] WARN: [${message}`, data ?? ' ');
         break;
       case LogType.ERROR: {
         let _message = message;
         if (error instanceof Error) {
           _message = `${_message}\n${error.message}`;
         }
-        console.error(`[${_context}] ERROR: ❌ ~ ${_message}`, data ?? " ");
+        console.error(`[${_context}] ERROR: ❌ ~ ${_message}`, data ?? ' ');
         if (error) {
           console.error(error);
         }
         break;
       }
       case LogType.INFO:
-        console.info(`[${_context}] INFO: ${message}`, data ?? " ");
+        console.info(`[${_context}] INFO: ${message}`, data ?? ' ');
         break;
     }
   }
 
   private context(context: LoggerContext): FlatLoggerContext {
-    return Array.isArray(context)
-      ? context.map((c) => this.context(c)).flat()
-      : [context];
+    return Array.isArray(context) ? context.map((c) => this.context(c)).flat() : [context];
   }
 
   private shouldLog(type: LogType, context: LoggerContext): boolean {
     const contextFlat = this.context(context);
-    const contextMerged = contextFlat.join(":");
+    const contextMerged = contextFlat.join(':');
     const hasCommonElement = (array1: unknown[], array2: unknown[]): boolean =>
       array1.some((element) => array2.includes(element));
 
     if (
       type === LogType.DEBUG &&
-      ((!this.config.debugContexts.has(contextMerged) &&
-        !this.config.debugContexts.has("**")) ||
+      ((!this.config.debugContexts.has(contextMerged) && !this.config.debugContexts.has('**')) ||
         this.config.debugContexts.has(`!${contextMerged}`) ||
         (!this.config.debugContexts.has(contextMerged) &&
           hasCommonElement(
             Array.from(this.config.debugContexts),
-            contextFlat.map((c) => `!${c}`),
+            contextFlat.map((c) => `!${c}`)
           )))
     ) {
       return false;
@@ -156,7 +149,7 @@ export class Logger {
 
   public addContext(
     currentContext: LoggerContext | undefined,
-    context: LoggerContext,
+    context: LoggerContext
   ): LoggerContext {
     return currentContext
       ? Array.isArray(currentContext)

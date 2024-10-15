@@ -1,4 +1,5 @@
-import { CallSessionService, type CallSession } from '../../services/call-session';
+import { type CallSession, CallSessionService } from '@/services/call-session';
+
 import { KeyValueStoreService } from './key-value-store.service';
 
 export const getStoreBySession = (session: CallSession): KeyValueStoreService => {

@@ -1,8 +1,9 @@
-import type WebSocket from 'ws';
 import { type RealtimeClient, RealtimeUtils } from '@openai/realtime-api-beta';
-import { sendToWebhook } from './send-to-webhook';
-import { logger } from '../utils/console-logger';
-import { callSessionService, type CallSession } from '../services/call-session';
+import type WebSocket from 'ws';
+
+import { type CallSession, CallSessionService, callSessionService } from '@/services/call-session';
+import { sendToWebhook } from '@/services/send-to-webhook';
+import { logger } from '@/utils/console-logger';
 
 const loggerContext = 'Twilio';
 
@@ -66,8 +67,9 @@ export const handleTwilioMessage = (
         break;
       case 'start':
         session.streamSid = message.start.streamSid;
-        session.incomingCall = JSON.parse(
-          decodeURIComponent(message.start.customParameters.incomingCall.slice(1))
+        CallSessionService.setIncomingCall(
+          session,
+          JSON.parse(decodeURIComponent(message.start.customParameters.incomingCall.slice(1)))
         );
         logger.log(
           'Incoming stream has started',
@@ -103,10 +105,10 @@ export const handleTwilioWsClose = async (
   logger.log(`Client disconnected (${session.id})`, undefined, loggerContext);
   logger.debug('Full Transcript', { transcript: session.transcript }, loggerContext);
 
-  logger.log(`Sending session to webhook: action 'callSummary'`, undefined, loggerContext);
+  logger.log(`Sending session to webhook: action 'call_summary'`, undefined, loggerContext);
   await sendToWebhook({
     session,
-    action: 'callSummary',
+    action: 'call_summary',
   });
 
   // Clean up the session

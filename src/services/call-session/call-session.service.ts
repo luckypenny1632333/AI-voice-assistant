@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+
 import { type CallSession, CallSessionSchema } from './types/call-session';
 
 const loggerContext = 'CallSessionService';
@@ -29,24 +30,30 @@ export class CallSessionService {
     this.sessions.delete(sessionId);
   }
 
-  static getAppId(session: CallSession): string | undefined {
+  static setIncomingCall(session: CallSession, incomingCall: CallSession['incomingCall']): void {
+    session.incomingCall = incomingCall;
+    session.appId = CallSessionService.getAppId(session);
+    session.callerId = CallSessionService.getCallerId(session);
+  }
+
+  static getAppId(session: Pick<CallSession, 'incomingCall'>): string | undefined {
     if (!session.incomingCall) {
       return;
     }
     const appName = process.env.APP_NAME;
-    return `${appName}_${CallSessionService.mapCallNumberToAppId(session.incomingCall.Callee)}`;
+    return `${appName}_${CallSessionService.mapCalleeNumberToAppId(session.incomingCall.Callee)}`;
   }
 
-  static getCallerId(session: CallSession): string | undefined {
+  static getCallerId(session: Pick<CallSession, 'incomingCall'>): string | undefined {
     if (!session.incomingCall) {
       return;
     }
-    return session.incomingCall.Caller;
+    return session.incomingCall.Caller.replace('+', '');
   }
 
-  static mapCallNumberToAppId(callNumber: string): string {
+  static mapCalleeNumberToAppId(callNumber: string): string {
     // add custom mapping here
-    return callNumber;
+    return callNumber.replace('+', '');
   }
 }
 export const callSessionService = new CallSessionService();

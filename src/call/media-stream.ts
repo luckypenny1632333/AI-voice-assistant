@@ -1,10 +1,11 @@
 import type { FastifyRequest } from 'fastify';
-import { setupTwilioEventHandler } from './twilio-message';
-import { openAIRealtimeClient } from '../providers/openai-realtime';
-import { setupOpenAIRealtimeClient } from './openai-realtime';
 import type WebSocket from 'ws';
-import { logger } from '../utils/console-logger';
-import { callSessionService } from '../services/call-session';
+
+import { openAIRealtimeClient } from '@/providers/openai-realtime';
+import { callSessionService } from '@/services/call-session';
+import { logger } from '@/utils/console-logger';
+import { setupOpenAIRealtimeClient } from './openai-realtime';
+import { setupTwilioEventHandler } from './twilio-message';
 
 const loggerContext = 'MediaStream';
 

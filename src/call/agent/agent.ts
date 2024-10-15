@@ -1,4 +1,4 @@
-import type { CallSession } from '../../services/call-session';
+import type { CallSession } from '@/services/call-session';
 
 // Agent config
 

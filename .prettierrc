@@ -1,4 +1,7 @@
 {
+  "plugins": [
+    "@trivago/prettier-plugin-sort-imports"
+  ],
   "semi": true,
   "singleQuote": true,
   "printWidth": 100,
@@ -6,5 +9,13 @@
   "trailingComma": "es5",
   "bracketSpacing": true,
   "arrowParens": "always",
-  "endOfLine": "lf"
+  "endOfLine": "lf",
+  "importOrder": [
+    "<THIRD_PARTY_MODULES>",
+    "^@/(.*)$",
+    "^[../]",
+    "^[./]"
+  ],
+  "importOrderSeparation": true, 
+  "importOrderSortSpecifiers": true
 }

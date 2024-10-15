@@ -1,6 +1,7 @@
-import dotenv from 'dotenv';
 import { RealtimeClient } from '@openai/realtime-api-beta';
-import { logger } from '../utils/console-logger';
+import dotenv from 'dotenv';
+
+import { logger } from '@/utils/console-logger';
 
 const loggerContext = 'OpenAI';
 

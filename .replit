@@ -37,7 +37,7 @@ enabledForHosting = false
 [languages]
 
 [languages.javascript]
-pattern = "**/{*.js,*.jsx,*.ts,*.tsx,*.json}"
+pattern = "**/{*.js,*.jsx,*.ts,*.tsx,*.json,*.prettierrc}"
 
 [languages.javascript.languageServer]
 start = "typescript-language-server --stdio"

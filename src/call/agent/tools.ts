@@ -1,13 +1,14 @@
-import type { ToolDefinitionType } from '@openai/realtime-api-beta/dist/lib/client';
 import type { RealtimeClient } from '@openai/realtime-api-beta';
+import type { ToolDefinitionType } from '@openai/realtime-api-beta/dist/lib/client';
 import axios from 'axios';
-
-import TurndownService from 'turndown';
 import * as cheerio from 'cheerio';
+import TurndownService from 'turndown';
+import { z } from 'zod';
 
-import { CallSessionService, type CallSession } from '../../services/call-session';
-import { getStoreBySession } from '../../services/key-value-store';
-import { logger } from '../../utils/console-logger';
+import { type CallSession } from '@/services/call-session';
+import { getStoreBySession } from '@/services/key-value-store';
+import { logger } from '@/utils/console-logger';
+import { getMessageFromUnknownError } from '@/utils/errors';
 
 const loggerContext = 'Tools';
 
@@ -34,18 +35,13 @@ async function onTool(args: unknown, handler: any, errorMessage?: string) {
   }
 }
 
-export const getMessageFromUnknownError = (error: unknown): string =>
-  axios.isAxiosError(error)
-    ? error.response?.data || error.message
-    : error instanceof Error
-      ? error.message
-      : error;
-
+/** @obsolete */
 export interface FunctionCallTool {
   definition: ToolDefinitionType;
   handler: (openAIRealtimeClient: RealtimeClient, session: CallSession) => Function;
 }
 
+/** @obsolete */
 export const agentTools: Array<FunctionCallTool> = [
   // Set Memory
   {
@@ -255,3 +251,72 @@ export const agentTools: Array<FunctionCallTool> = [
       ),
   },
 ];
+
+interface AgentFunction<
+  Parameters extends z.ZodType = z.ZodType,
+  Response extends z.ZodType = z.ZodType,
+> {
+  name: string;
+  description?: string | undefined;
+  parameters?: Parameters;
+  response?: Response;
+  function:
+    | ((args: z.infer<Parameters>) => z.infer<Response> | Promise<z.infer<Response>>)
+    | undefined;
+  onCall?: ((args: z.infer<Parameters>) => unknown | Promise<unknown>) | undefined;
+  onComplete?: ((args: z.infer<Response>) => unknown | Promise<unknown>) | undefined;
+}
+
+//
+
+interface WebhookFunction extends Omit<AgentFunction, 'function'> {}
+
+type ToolsConfig = Record<string, AgentFunction | WebhookFunction>;
+const TOOLS = {
+  call_summary: {
+    name: 'call_summary' as const,
+    description: 'returns a summary of the call',
+    response: z.object({
+      customerName: z.string(),
+      customerLanguage: z.string().describe('The language the customer spoke in'),
+      customerAvailability: z.string(),
+      specialNotes: z.string(),
+    }),
+  },
+  add_memory: {
+    name: 'add_memory' as const,
+    description: 'Adds a key-value pair to the memory',
+    parameters: z.object({
+      key: z.string(),
+      value: z.string(),
+    }),
+  },
+  remove_memory: {
+    name: 'remove_memory' as const,
+    description: 'Removes a key-value pair from the memory',
+    parameters: z.object({
+      key: z.string(),
+    }),
+  },
+  calendar_check_availability: {
+    name: 'calendar_check_availability' as const,
+    description: 'Checks the availability of a calendar',
+    parameters: z.object({
+      startAt: z.string().describe('The start date and time of the availability check'),
+      endAt: z.string().describe('The end date and time of the availability check'),
+    }),
+  },
+  calendar_create_event: {
+    name: 'calendar_create_event' as const,
+    description: 'Creates an event in a calendar',
+    parameters: z.object({
+      startAt: z.string().describe('The start date and time of the event'),
+      endAt: z.string().describe('The end date and time of the event'),
+    }),
+  },
+} as const satisfies ToolsConfig;
+// import { zodFunction, zodParseJSON, zodResponseFormat } from 'openai/helpers/zod';
+//   parameters: zodToJsonSchema(SearchParams),
+//   parse: zodParseJSON(SearchParams),
+
+type ToolTypes = (typeof TOOLS)[keyof typeof TOOLS];

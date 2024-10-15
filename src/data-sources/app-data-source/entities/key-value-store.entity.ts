@@ -6,6 +6,9 @@ export class KeyValueStore {
   app!: string;
 
   @PrimaryColumn({ type: 'text' })
+  user!: string;
+
+  @PrimaryColumn({ type: 'text' })
   key!: string;
 
   @Column({ type: 'text' })

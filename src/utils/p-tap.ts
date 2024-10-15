@@ -1,9 +1,7 @@
 /**
  * Define a generic type for the callback
  */
-export type UnknownCallback<Input = unknown, Output = unknown> = (
-  input: Input,
-) => Output;
+export type UnknownCallback<Input = unknown, Output = unknown> = (input: Input) => Output;
 
 /**
  * Pipeable function that performs a tap on the provided function and returns the arguments passed to it.
