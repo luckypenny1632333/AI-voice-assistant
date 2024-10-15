@@ -1,24 +1,43 @@
-import { CallSessionService } from '@/services/call-session';
+import { CallSessionService, type CallSession } from '@/services/call-session';
 
-export const testSession = {
+export const testIncomingCall = {
+  ApiVersion:  "2010-04-01",
+  AccountSid: "AC00000000000000000000000000000000",
+  CallSid:  "CA00000000000000000000000000000000",
+  CallStatus: "ringring",
+  Direction:  "inbound",
+  Caller:  "+491700000000",
+  CallerZip:  "",
+  CallerCity:  "",
+  CallerState:  "",
+  CallerCountry:  "DE",
+  From:  "+491700000000",
+  FromZip:  "",
+  FromCity: "",
+  FromState:  "",
+  FromCountry:  "DE",
+  Called:  "+48732106545",
+  CalledZip:  "",
+  CalledCity:  "",
+  CalledState:  "",
+  CalledCountry: "PL",
+  To:  "+48732106545",
+  ToZip:  "",
+  ToCity:  "",
+  ToState:  "",
+  ToCountry:  "PL",
+}
+
+export const testSession: CallSession = {
   id: `session_${Date.now()}`,
   createdAt: Date.now(),
   streamSid: 'sid-123',
-  incomingCall: {
-    Caller: '+4917012345678',
-    CallerCountry: 'DE',
-    Callee: '+4821012345678',
-  },
+  incomingCall: testIncomingCall,
   appId: CallSessionService.getAppId({
-    incomingCall: {
-      Callee: '+4821012345678',
-    },
+    incomingCall: testIncomingCall,
   }),
   callerId: CallSessionService.getCallerId({
-    incomingCall: {
-      Caller: '+4917012345678',
-      CallerCountry: 'DE',
-    },
+    incomingCall: testIncomingCall,
   }),
   transcript: '',
 };

@@ -41,7 +41,7 @@ export class CallSessionService {
       return;
     }
     const appName = process.env.APP_NAME;
-    return `${appName}_${CallSessionService.mapCalleeNumberToAppId(session.incomingCall.Callee)}`;
+    return `${appName}_${CallSessionService.mapCalledNumberToAppId(session.incomingCall.Called)}`;
   }
 
   static getCallerId(session: Pick<CallSession, 'incomingCall'>): string | undefined {
@@ -51,7 +51,7 @@ export class CallSessionService {
     return session.incomingCall.Caller.replace('+', '');
   }
 
-  static mapCalleeNumberToAppId(callNumber: string): string {
+  static mapCalledNumberToAppId(callNumber: string): string {
     // add custom mapping here
     return callNumber.replace('+', '');
   }
