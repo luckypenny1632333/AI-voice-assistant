@@ -272,7 +272,7 @@ interface AgentFunction<
 interface WebhookFunction extends Omit<AgentFunction, 'function'> {}
 
 type ToolsConfig = Record<string, AgentFunction | WebhookFunction>;
-const TOOLS = {
+export const TOOLS = {
   call_summary: {
     name: 'call_summary' as const,
     description: 'returns a summary of the call',
@@ -319,4 +319,4 @@ const TOOLS = {
 //   parameters: zodToJsonSchema(SearchParams),
 //   parse: zodParseJSON(SearchParams),
 
-type ToolTypes = (typeof TOOLS)[keyof typeof TOOLS];
+export type ToolTypes = (typeof TOOLS)[keyof typeof TOOLS];

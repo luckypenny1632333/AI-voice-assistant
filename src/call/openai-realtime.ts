@@ -5,6 +5,7 @@ import { endCall } from '@/providers/twilio';
 import type { CallSession } from '@/services/call-session';
 import { logger } from '@/utils/console-logger';
 import { getDuration } from '@/utils/datetime';
+
 import { VOICE, getSystemMessage } from './agent/agent';
 import { agentTools } from './agent/tools';
 
@@ -55,20 +56,20 @@ export const setupOpenAIRealtimeClient = (
   //     logger.log(`DEBUG realtime.event`, { time, source, event }, loggerContext);
   //   }
   // );
-  openAIRealtimeClient.on('conversation.interrupted', ({ ...rest }: any) => {
-    logger.log(`Received event: conversation.interrupted`, rest, loggerContext);
+  openAIRealtimeClient.on('conversation.interrupted', (args: unknown) => {
+    logger.log(`Received event: conversation.interrupted`, { args }, loggerContext);
   });
-  openAIRealtimeClient.on('conversation.updated', ({ ...rest }: any) => {
-    logger.log(`Received event: conversation.updated`, rest, loggerContext);
+  openAIRealtimeClient.on('conversation.updated', (args: unknown) => {
+    logger.log(`Received event: conversation.updated`, { args }, loggerContext);
   });
-  openAIRealtimeClient.on('conversation.item.appended', ({ ...rest }: any) => {
-    logger.log(`Received event: conversation.item.appended`, rest, loggerContext);
+  openAIRealtimeClient.on('conversation.item.appended', (args: unknown) => {
+    logger.log(`Received event: conversation.item.appended`, { args }, loggerContext);
   });
-  openAIRealtimeClient.on('conversation.item.completed', ({ ...rest }: any) => {
-    logger.log(`Received event: conversation.item.completed`, rest, loggerContext);
+  openAIRealtimeClient.on('conversation.item.completed', (args: unknown) => {
+    logger.log(`Received event: conversation.item.completed`, { args }, loggerContext);
   });
-  // openAIRealtimeClient.realtime.on('client.*', ({ ...rest }: any) =>
-  //   logger.log(`Received event: realtime client.*: ${session.id}`, rest, loggerContext)
+  // openAIRealtimeClient.realtime.on('client.*', (args: unknown) =>
+  //   logger.log(`Received event: realtime client.*: ${session.id}`, args, loggerContext)
   // );
 
   openAIRealtimeClient

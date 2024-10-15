@@ -2,6 +2,7 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 import { z } from 'zod';
 
+import { TOOLS, type ToolTypes } from '@/call/agent/tools';
 import { type CallSession } from '@/services/call-session';
 import { logger } from '@/utils/console-logger';
 import { getMessageFromUnknownError } from '@/utils/errors';
@@ -9,8 +10,6 @@ import { getMessageFromUnknownError } from '@/utils/errors';
 const loggerContext = 'Webhook';
 
 dotenv.config(); // Load environment variables from .env
-
-
 
 interface WebhookAction<F extends ToolTypes> {
   action: F['name'];
