@@ -12,13 +12,13 @@ const loggerContext = 'Webhook';
 dotenv.config(); // Load environment variables from .env
 
 interface WebhookAction<F extends ToolTypes> {
-  action: F['name'];
+  action: string;
   session: CallSession;
   parameters?: F extends { parameters: z.ZodType } ? z.infer<F['parameters']> : undefined;
 }
 
 interface WebhookActionResponse<F extends ToolTypes> {
-  action: F['name'];
+  action: string;
   status: number;
   response?: F extends { response: z.ZodType } ? z.infer<F['response']> : undefined;
 }

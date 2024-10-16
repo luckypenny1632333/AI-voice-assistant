@@ -1,13 +1,17 @@
 import type { RealtimeClient } from '@openai/realtime-api-beta';
+import type { ToolDefinitionType } from '@openai/realtime-api-beta/dist/lib/client';
+import { zodFunction } from 'openai/helpers/zod';
 import type WebSocket from 'ws';
+import { z } from 'zod';
 
 import { endCall } from '@/providers/twilio';
 import type { CallSession } from '@/services/call-session';
+import { sendToWebhook } from '@/services/send-to-webhook';
 import { logger } from '@/utils/console-logger';
 import { getDuration } from '@/utils/datetime';
 
 import { VOICE, getSystemMessage } from './agent/agent';
-import { agentTools } from './agent/tools';
+import { type AgentFunction, TOOLS, onTool } from './agent/tools';
 
 // List of Event Types to log to the console
 const LOG_EVENT_TYPES = [
@@ -30,6 +34,14 @@ const LOG_EVENT_TYPES_EXCLUDE = [
 ];
 
 const loggerContext = 'OpenAI';
+
+export interface FunctionCallTool {
+  definition: ToolDefinitionType;
+  handler: (
+    openAIRealtimeClient: RealtimeClient,
+    session: CallSession
+  ) => (args?: unknown) => unknown;
+}
 
 export const setupOpenAIRealtimeClient = (
   openAIRealtimeClient: RealtimeClient,
@@ -69,7 +81,7 @@ export const setupOpenAIRealtimeClient = (
     logger.log(`Received event: conversation.item.completed`, { args }, loggerContext);
   });
   // openAIRealtimeClient.realtime.on('client.*', (args: unknown) =>
-  //   logger.log(`Received event: realtime client.*: ${session.id}`, args, loggerContext)
+  //   logger.log(`Received event: realtime client.*: ${session.id}`, { args }, loggerContext)
   // );
 
   openAIRealtimeClient
@@ -116,9 +128,42 @@ const sendSessionUpdate = (openAIRealtimeClient: RealtimeClient, session: CallSe
 };
 
 const addTools = (openAIRealtimeClient: RealtimeClient, session: CallSession) => {
-  agentTools.forEach((tool) =>
-    openAIRealtimeClient.addTool(tool.definition, tool.handler(openAIRealtimeClient, session))
-  );
+  Object.values(TOOLS)
+    .map((tool) => convertAgentFunctionToRTCTool(tool))
+    .forEach((tool) =>
+      openAIRealtimeClient.addTool(tool.definition, tool.handler(openAIRealtimeClient, session))
+    );
+};
+
+const convertAgentFunctionToRTCTool = (tool: AgentFunction): FunctionCallTool => {
+  if (
+    'parameters' in tool &&
+    tool.parameters &&
+    'function' in tool &&
+    typeof tool.function === 'function'
+  ) {
+    tool.parameters;
+    tool.function;
+  }
+  const parseableTool = zodFunction({
+    name: tool.name,
+    description: tool.description,
+    parameters: 'parameters' in tool && tool.parameters ? tool.parameters : z.object({}),
+    function: 'function' in tool && typeof tool.function === 'function' ? tool.function : undefined,
+  });
+  return {
+    definition: {
+      type: 'function',
+      name: tool.name,
+      description: tool.description ?? '',
+      parameters: parseableTool.function.parameters ?? {},
+    },
+    handler:
+      tool.type === 'call'
+        ? (openAIRealtimeClient, session) => (args?: unknown) => onTool(args, tool.function) // call `CallFunction`
+        : (openAIRealtimeClient, session) => (args?: unknown) =>
+            sendToWebhook({ action: tool.name, session, parameters: tool.parameters?.parse(args) }), // send `WebhookFunction` to webhook
+  };
 };
 
 const sendInitiateConversation = (openAIRealtimeClient: RealtimeClient) => {

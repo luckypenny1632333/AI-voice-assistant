@@ -1,18 +1,16 @@
-import type { RealtimeClient } from '@openai/realtime-api-beta';
-import type { ToolDefinitionType } from '@openai/realtime-api-beta/dist/lib/client';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import TurndownService from 'turndown';
 import { z } from 'zod';
 
-import { type CallSession } from '@/services/call-session';
+import { type FunctionCallTool } from '@/call/openai-realtime';
 import { getStoreBySession } from '@/services/key-value-store';
 import { logger } from '@/utils/console-logger';
 import { getMessageFromUnknownError } from '@/utils/errors';
 
 const loggerContext = 'Tools';
 
-async function onTool(args: unknown, handler: any, errorMessage?: string) {
+export async function onTool(args: unknown, handler: any, errorMessage?: string) {
   try {
     return (await handler(args)) ?? { success: true };
   } catch (error: unknown) {
@@ -33,12 +31,6 @@ async function onTool(args: unknown, handler: any, errorMessage?: string) {
       error: errorMessage ?? `Error handling tool: ${errorMessageFromError}`,
     };
   }
-}
-
-/** @obsolete */
-export interface FunctionCallTool {
-  definition: ToolDefinitionType;
-  handler: (openAIRealtimeClient: RealtimeClient, session: CallSession) => Function;
 }
 
 /** @obsolete */
@@ -252,10 +244,11 @@ export const agentTools: Array<FunctionCallTool> = [
   },
 ];
 
-interface AgentFunction<
+interface BaseFunction<
   Parameters extends z.ZodType = z.ZodType,
   Response extends z.ZodType = z.ZodType,
 > {
+  type: 'call' | 'webhook';
   name: string;
   description?: string | undefined;
   parameters?: Parameters;
@@ -267,14 +260,27 @@ interface AgentFunction<
   onComplete?: ((args: z.infer<Response>) => unknown | Promise<unknown>) | undefined;
 }
 
-//
+interface CallFunction<
+  Parameters extends z.ZodType = z.ZodType,
+  Response extends z.ZodType = z.ZodType,
+> extends BaseFunction<Parameters, Response> {
+  type: 'call';
+}
 
-interface WebhookFunction extends Omit<AgentFunction, 'function'> {}
+interface WebhookFunction<
+  Parameters extends z.ZodType = z.ZodType,
+  Response extends z.ZodType = z.ZodType,
+> extends Omit<BaseFunction<Parameters, Response>, 'function'> {
+  type: 'webhook';
+}
 
-type ToolsConfig = Record<string, AgentFunction | WebhookFunction>;
+export type AgentFunction = CallFunction | WebhookFunction;
+
+type ToolsConfig = Record<string, AgentFunction>;
 export const TOOLS = {
   call_summary: {
-    name: 'call_summary' as const,
+    type: 'webhook',
+    name: 'call_summary',
     description: 'returns a summary of the call',
     response: z.object({
       customerName: z.string(),
@@ -284,7 +290,8 @@ export const TOOLS = {
     }),
   },
   add_memory: {
-    name: 'add_memory' as const,
+    type: 'webhook',
+    name: 'add_memory',
     description: 'Adds a key-value pair to the memory',
     parameters: z.object({
       key: z.string(),
@@ -292,14 +299,16 @@ export const TOOLS = {
     }),
   },
   remove_memory: {
-    name: 'remove_memory' as const,
+    type: 'webhook',
+    name: 'remove_memory',
     description: 'Removes a key-value pair from the memory',
     parameters: z.object({
       key: z.string(),
     }),
   },
   calendar_check_availability: {
-    name: 'calendar_check_availability' as const,
+    type: 'webhook',
+    name: 'calendar_check_availability',
     description: 'Checks the availability of a calendar',
     parameters: z.object({
       startAt: z.string().describe('The start date and time of the availability check'),
@@ -307,7 +316,8 @@ export const TOOLS = {
     }),
   },
   calendar_create_event: {
-    name: 'calendar_create_event' as const,
+    type: 'webhook',
+    name: 'calendar_create_event',
     description: 'Creates an event in a calendar',
     parameters: z.object({
       startAt: z.string().describe('The start date and time of the event'),
@@ -320,3 +330,5 @@ export const TOOLS = {
 //   parse: zodParseJSON(SearchParams),
 
 export type ToolTypes = (typeof TOOLS)[keyof typeof TOOLS];
+
+const x: ToolTypes['name'] = 'call_summary';
