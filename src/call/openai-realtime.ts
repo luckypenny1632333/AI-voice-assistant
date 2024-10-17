@@ -171,7 +171,7 @@ const convertAgentFunctionToRTCTool = (tool: AgentFunction): FunctionCallTool =>
   };
 };
 
-const sendInitiateConversation = (openAIRealtimeClient: RealtimeClient) => {
+const sendInitiateConversation = (openAIRealtimeClient: RealtimeClient, memory: unknown) => {
   logger.log(
     'Sending initiate conversation',
     undefined, // initiateConversation,
@@ -188,7 +188,21 @@ export const handleOpenAIRealtimeConnected = (
   sendSessionUpdate(openAIRealtimeClient, session);
   addTools(openAIRealtimeClient, session);
 
-  setTimeout(() => sendInitiateConversation(openAIRealtimeClient), 500);
+  // wait until session.streamSid is set
+  const waitForIncomingStream = () => {
+    if (!session.streamSid) {
+      setTimeout(() => waitForIncomingStream, 500);
+      return;
+    }
+    sendToWebhook({
+      action: 'read_memory',
+      session,
+    }).then((memory) => {
+      logger.log('Memory read', { memory }, loggerContext);
+      setTimeout(() => sendInitiateConversation(openAIRealtimeClient, memory.response), 500);
+    });
+  };
+  waitForIncomingStream();
 };
 
 export const handleOpenAIRealtimeClose = (code: number, reason?: Buffer) => {
