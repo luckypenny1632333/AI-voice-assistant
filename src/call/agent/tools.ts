@@ -132,12 +132,6 @@ export const TOOLS = {
       content: z.string().describe('The scraped content'),
     }),
   },
-  // noop: {
-  //   type: 'call',
-  //   name: 'noop',
-  //   description: 'Does nothing',
-  //   function: () => ({}),
-  // },
 } satisfies ToolsConfig;
 
 export type ToolTypes = (typeof TOOLS)[keyof typeof TOOLS];
