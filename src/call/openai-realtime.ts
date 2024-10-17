@@ -9,6 +9,7 @@ import type { CallSession } from '@/services/call-session';
 import { sendToWebhook } from '@/services/send-to-webhook';
 import { logger } from '@/utils/console-logger';
 import { getDuration } from '@/utils/datetime';
+import { ENV_IS_DEPLOYED } from '@/utils/environment';
 
 import { VOICE, getSystemMessage } from './agent/agent';
 import { type AgentFunction, TOOLS, onTool } from './agent/tools';
@@ -72,7 +73,11 @@ export const setupOpenAIRealtimeClient = (
     logger.log(`Received event: conversation.interrupted`, { args }, loggerContext);
   });
   openAIRealtimeClient.on('conversation.updated', (args: unknown) => {
-    logger.log(`Received event: conversation.updated`, { args }, loggerContext);
+    logger.log(
+      `Received event: conversation.updated`,
+      !ENV_IS_DEPLOYED && false ? { args } : undefined,
+      loggerContext
+    );
   });
   openAIRealtimeClient.on('conversation.item.appended', (args: unknown) => {
     logger.log(`Received event: conversation.item.appended`, { args }, loggerContext);
