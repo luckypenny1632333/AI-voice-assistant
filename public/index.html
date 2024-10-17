@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Reactive Chat Application</title>
+    <title>Chat</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       .chat-container {
@@ -14,7 +14,7 @@
   </head>
   <body class="bg-gray-100">
     <div class="container mx-auto p-4">
-      <h1 class="text-3xl font-bold mb-4">Reactive Chat Application</h1>
+      <h1 class="text-3xl font-bold mb-4">Chat</h1>
       <div id="chat-container" class="chat-container bg-white rounded-lg shadow-md p-4 mb-4"></div>
       <form id="chat-form" class="flex">
         <input
@@ -22,6 +22,7 @@
           id="user-input"
           class="flex-grow p-2 border rounded-l-lg"
           placeholder="Type your message..."
+          autocomplete="off"
         />
         <button type="submit" class="bg-blue-500 text-white p-2 rounded-r-lg">Send</button>
       </form>
@@ -124,7 +125,7 @@
                 addMessage(
                   {
                     role: 'tool',
-                    content: 'Tool response: ' + message.name,
+                    content: 'Tool response: ' + message.tool_name,
                     isToolResponse: true,
                     toolDetails: message.content,
                   },

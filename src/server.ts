@@ -25,9 +25,9 @@ fastify.all('/incoming-call', handleIncomingCall);
 
 // WebSocket route for media-stream
 fastify.register(async (fastify) => {
-  fastify.get('/media-stream', { websocket: true }, (twilioWs, req) =>
-    handleMediaStream(twilioWs, req)
-  );
+  fastify.get('/media-stream', { websocket: true }, (twilioWs, req) => {
+    handleMediaStream(twilioWs, req);
+  });
 });
 
 // Root Route

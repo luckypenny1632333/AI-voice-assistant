@@ -28,6 +28,7 @@ const loggerContext = 'ChatService';
 
 // Add a new type for our special messages
 type SpecialMessage = ChatMessage & {
+  tool_name?: string;
   isToolCall?: boolean;
   isToolResponse?: boolean;
   toolDetails?: string;
@@ -78,20 +79,21 @@ export async function handleChatMessage(
         const tool = TOOLS[functionName as keyof typeof TOOLS];
         if (tool) {
           let functionResult;
-          if (tool.type === 'call') {
-            functionResult = await onTool(functionArgs, tool.function);
-          } else {
+          if (tool.type === 'webhook') {
             functionResult = await sendToWebhook({
               action: tool.name,
               session: testSession, // TODO: replace with proper session object
               parameters: 'parameters' in tool ? tool.parameters.parse(functionArgs) : {},
             });
+          } else if ('function' in tool) {
+            functionResult = await onTool(functionArgs, tool.function);
           }
 
           const functionResultMessage: SpecialMessage = {
             role: 'tool',
             content: JSON.stringify(functionResult),
             tool_call_id: toolCall.id,
+            tool_name: tool.name,
             isToolResponse: true,
             toolDetails: JSON.stringify(functionResult, null, 2),
           };
