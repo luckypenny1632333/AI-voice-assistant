@@ -73,6 +73,15 @@ export const TOOLS = {
       specialNotes: z.string(),
     }),
   },
+  read_memory: {
+    type: 'webhook',
+    name: 'read_memory',
+    description: 'returns the memory of the agent for the caller',
+    parameters: z.object({
+      key: z.string().optional().describe('Optionally specify a key to read from the memory'),
+    }),
+    // response: z.object({}),
+  },
   add_memory: {
     type: 'webhook',
     name: 'add_memory',
@@ -106,6 +115,21 @@ export const TOOLS = {
     parameters: z.object({
       startAt: z.string().describe('The start date and time of the event'),
       endAt: z.string().describe('The end date and time of the event'),
+    }),
+  },
+  web_scraper: {
+    type: 'webhook',
+    name: 'web_scraper',
+    description: 'Scrapes a website for information',
+    parameters: z.object({
+      url: z.string().describe('The URL of the website to scrape'),
+      mode: z
+        .enum(['text', 'print', 'article', 'source', 'screenshot'])
+        .default('text')
+        .describe('The mode of the scraping. Default: text.'),
+    }),
+    response: z.object({
+      content: z.string().describe('The scraped content'),
     }),
   },
 } as const satisfies ToolsConfig;

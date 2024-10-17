@@ -54,6 +54,7 @@ export const sendToWebhook = (async (payload) => {
         Authorization: `Bearer ${process.env.WEBHOOK_TOKEN}`,
       },
     });
+    logger.log('Raw webhook response', { rawResponse: response.data }, loggerContext);
 
     // parse response
     const webhookResponse = {
