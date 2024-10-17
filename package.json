@@ -27,6 +27,8 @@
   },
   "dependencies": {
     "@fastify/formbody": "^8.0.0",
+    "@fastify/rate-limit": "^10.1.1",
+    "@fastify/static": "^8.0.2",
     "@fastify/websocket": "^11.0.0",
     "@openai/realtime-api-beta": "github:openai/openai-realtime-api-beta",
     "axios": "^1.7.0",

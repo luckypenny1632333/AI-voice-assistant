@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reactive Chat Application</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .chat-container {
+        height: calc(100vh - 200px);
+        overflow-y: auto;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+      <h1 class="text-3xl font-bold mb-4">Reactive Chat Application</h1>
+      <div id="chat-container" class="chat-container bg-white rounded-lg shadow-md p-4 mb-4"></div>
+      <form id="chat-form" class="flex">
+        <input
+          type="text"
+          id="user-input"
+          class="flex-grow p-2 border rounded-l-lg"
+          placeholder="Type your message..."
+        />
+        <button type="submit" class="bg-blue-500 text-white p-2 rounded-r-lg">Send</button>
+      </form>
+    </div>
+
+    <script>
+      const chatContainer = document.getElementById('chat-container');
+      const chatForm = document.getElementById('chat-form');
+      const userInput = document.getElementById('user-input');
+      let chatHistory = [];
+
+      function addMessage(message, updateHistory = true) {
+        const messageDiv = document.createElement('div');
+
+        if (message.isToolCall || message.isToolResponse) {
+          messageDiv.className = `mb-2 p-2 rounded-lg bg-gray-200`;
+          const summary = document.createElement('summary');
+          summary.textContent = message.content;
+          summary.className = 'cursor-pointer font-semibold';
+
+          const details = document.createElement('details');
+          details.appendChild(summary);
+
+          const pre = document.createElement('pre');
+          pre.textContent = message.toolDetails;
+          pre.className = 'mt-2 p-2 bg-gray-100 rounded text-sm overflow-x-auto';
+
+          details.appendChild(pre);
+          messageDiv.appendChild(details);
+        } else {
+          messageDiv.className = `mb-2 p-2 rounded-lg ${message.role === 'user' ? 'bg-blue-100 text-right' : 'bg-gray-100'}`;
+          messageDiv.textContent = `${message.role === 'user' ? 'You' : 'Assistant'}: ${message.content}`;
+        }
+
+        chatContainer.appendChild(messageDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        if (updateHistory) {
+          chatHistory.push(message);
+        }
+      }
+
+      function addLoadingIndicator() {
+        const loadingDiv = document.createElement('div');
+        loadingDiv.id = 'loading-indicator';
+        loadingDiv.className = 'mb-2 p-2 bg-gray-100 rounded-lg';
+        loadingDiv.textContent = 'Assistant is typing...';
+        chatContainer.appendChild(loadingDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
+
+      function removeLoadingIndicator() {
+        const loadingIndicator = document.getElementById('loading-indicator');
+        if (loadingIndicator) {
+          loadingIndicator.remove();
+        }
+      }
+
+      chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const message = userInput.value.trim();
+        if (!message) return;
+
+        // Display the user message in the chat, but don't add it to chatHistory yet
+        addMessage({ role: 'user', content: message }, false);
+        userInput.value = '';
+
+        addLoadingIndicator();
+
+        try {
+          const response = await fetch('/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message, history: chatHistory }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to get response');
+          }
+
+          const data = await response.json();
+          removeLoadingIndicator();
+
+          // Add new messages from the response to the chat and update chatHistory
+          if (data.response && Array.isArray(data.response)) {
+            data.response.slice(chatHistory.length + 1).forEach((message) => {
+              if (message.role === 'assistant' && message.content === null && message.tool_calls) {
+                // Handle tool call
+                addMessage(
+                  {
+                    role: 'assistant',
+                    content: 'Calling tool: ' + message.tool_calls[0].function.name,
+                    isToolCall: true,
+                    toolDetails: JSON.stringify(message.tool_calls[0].function, null, 2),
+                  },
+                  true
+                );
+              } else if (message.role === 'tool') {
+                // Handle tool response
+                addMessage(
+                  {
+                    role: 'tool',
+                    content: 'Tool response: ' + message.name,
+                    isToolResponse: true,
+                    toolDetails: message.content,
+                  },
+                  true
+                );
+              } else {
+                // Handle regular messages
+                addMessage(message, true);
+              }
+            });
+          } else {
+            throw new Error('Invalid response format');
+          }
+        } catch (error) {
+          removeLoadingIndicator();
+          addMessage(
+            {
+              role: 'assistant',
+              content: 'Sorry, there was an error processing your request.',
+            },
+            true
+          );
+          console.error('Error:', error);
+        }
+      });
+    </script>
+  </body>
+</html>

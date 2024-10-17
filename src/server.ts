@@ -1,9 +1,13 @@
 import fastifyFormBody from '@fastify/formbody';
+import fastifyRateLimit from '@fastify/rate-limit';
+import fastifyStatic from '@fastify/static';
 import fastifyWs from '@fastify/websocket';
 import Fastify from 'fastify';
+import path from 'path';
 import 'reflect-metadata';
 
 import { handleIncomingCall, handleMediaStream } from '@/call';
+import { handleChatMessage } from '@/services/chat-service';
 import { logger } from '@/utils/console-logger';
 import { ENV_IS_DEPLOYED, PORT } from '@/utils/environment';
 
@@ -30,6 +34,40 @@ fastify.register(async (fastify) => {
 fastify.get('/', async (_request, reply) => {
   logger.log(`Request GET /`, undefined, loggerContext);
   reply.send({ message: 'Twilio Media Stream Server is running!' });
+});
+
+// Register the static file serving plugin
+fastify.register(fastifyStatic, {
+  root: path.join(__dirname, '../public'),
+  prefix: '/public/', // This is optional and will add /public to the URLs
+});
+
+// Serve the Chat HTML file
+fastify.get('/chat', async (_request, reply) => {
+  return reply.sendFile('index.html');
+});
+
+fastify.post('/chat', async (request, reply) => {
+  const { message, history } = request.body as { message: string; history: any[] };
+
+  if (!message) {
+    reply.code(400).send({ error: 'Message is required' });
+    return;
+  }
+
+  try {
+    const response = await handleChatMessage(message, history);
+    reply.send({ response });
+  } catch (error) {
+    logger.error('Error processing chat message:', error, undefined, loggerContext);
+    reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Register rate limiting plugin
+fastify.register(fastifyRateLimit, {
+  max: 100,
+  timeWindow: '1 minute',
 });
 
 // Test Routes

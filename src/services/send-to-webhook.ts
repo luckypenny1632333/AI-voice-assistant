@@ -61,7 +61,7 @@ export const sendToWebhook = (async (payload) => {
       action,
       status: response.status,
       ...('response' in tool && {
-        response: tool.response.parse(response.data),
+        response: tool.response.parse(response.data.response),
       }),
     };
 

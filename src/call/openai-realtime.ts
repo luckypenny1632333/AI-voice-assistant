@@ -1,8 +1,6 @@
 import type { RealtimeClient } from '@openai/realtime-api-beta';
 import type { ToolDefinitionType } from '@openai/realtime-api-beta/dist/lib/client';
-import { zodFunction } from 'openai/helpers/zod';
 import type WebSocket from 'ws';
-import { z } from 'zod';
 
 import { endCall } from '@/providers/twilio';
 import type { CallSession } from '@/services/call-session';
@@ -13,6 +11,7 @@ import { ENV_IS_DEPLOYED } from '@/utils/environment';
 
 import { VOICE, getSystemMessage } from './agent/agent';
 import { type AgentFunction, TOOLS, onTool } from './agent/tools';
+import { convertAgentFunctionToParseableTool } from './agent/utils/convert-agent-function';
 
 // List of Event Types to log to the console
 const LOG_EVENT_TYPES = [
@@ -141,21 +140,7 @@ const addTools = (openAIRealtimeClient: RealtimeClient, session: CallSession) =>
 };
 
 const convertAgentFunctionToRTCTool = (tool: AgentFunction): FunctionCallTool => {
-  if (
-    'parameters' in tool &&
-    tool.parameters &&
-    'function' in tool &&
-    typeof tool.function === 'function'
-  ) {
-    tool.parameters;
-    tool.function;
-  }
-  const parseableTool = zodFunction({
-    name: tool.name,
-    description: tool.description,
-    parameters: 'parameters' in tool && tool.parameters ? tool.parameters : z.object({}),
-    function: 'function' in tool && typeof tool.function === 'function' ? tool.function : undefined,
-  });
+  const parseableTool = convertAgentFunctionToParseableTool(tool);
   return {
     definition: {
       type: 'function',
