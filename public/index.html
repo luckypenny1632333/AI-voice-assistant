@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chat</title>
+    <link
+      rel="icon"
+      href="data:image/x-icon;base64,AAABAAEAEBAQAAEABAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA/4QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEREQAAAAAAEAAAEAAAAAEAAAABAAAAEAAAAAAQAAAQAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//wAA//8AAP//AAD8HwAA++8AAPf3AADv+wAA7/sAAP//AAD//wAA+98AAP//AAD//wAA//8AAP//AAD//wAA"
+      type="image/x-icon"
+    />
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       /* Custom styles for chat container */
@@ -34,15 +39,7 @@
       </form>
 
       <!-- Suggested answers -->
-      <div id="suggested-answers" class="flex space-x-2 mb-2">
-        <button class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-sm">
-          Termin morgen 15 Uhr
-        </button>
-        <button class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-sm">
-          Wie geht's Eddy?
-        </button>
-        <button class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-sm">Suggestion 3</button>
-      </div>
+      <div id="suggested-answers" class="flex space-x-2 mb-2"></div>
 
       <!-- End Chat button -->
       <button
@@ -54,146 +51,114 @@
     </div>
 
     <script>
+      // Constants
+      const SUGGESTED_PROMPTS = ['Termin morgen 15 Uhr zum Waschen', "Wie geht's Eddy?"];
+
       // DOM element references
       const chatContainer = document.getElementById('chat-container');
       const chatForm = document.getElementById('chat-form');
       const userInput = document.getElementById('user-input');
+      const endChatButton = document.getElementById('end-chat');
+      const suggestedAnswers = document.getElementById('suggested-answers');
 
-      // Array to store chat history
+      // State
       let chatHistory = [];
 
-      /**
-       * Adds a message to the chat interface and optionally updates the chat history.
-       * This function handles different types of messages, including user messages,
-       * assistant messages, and tool responses.
-       *
-       * @param {Object} message - The message object to add.
-       * @param {string} message.role - The role of the message sender ('user', 'assistant', or 'tool').
-       * @param {string} message.content - The content of the message.
-       * @param {string} [message.tool_call_id] - The ID of the tool call, if applicable.
-       * @param {boolean} [message.isHiddenMessage] - Whether the message should be hidden from the chat history.
-       */
-      function addMessage(message) {
+      // UI Components
+      const createMessageElement = (role, content) => {
         const messageDiv = document.createElement('div');
+        messageDiv.className = `mb-2 p-2 rounded-lg ${role === 'user' ? 'bg-blue-100 text-right' : 'bg-gray-100'}`;
+        messageDiv.textContent = `${role === 'user' ? 'You' : 'Assistant'}: ${content}`;
+        return messageDiv;
+      };
+
+      const createExpandableInfo = (title, content) => {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'mb-2 p-2 rounded-lg bg-gray-200';
+        messageDiv.innerHTML = `
+          <details>
+            <summary class="cursor-pointer font-semibold">${title}</summary>
+            <pre class="mt-2 p-2 bg-gray-100 rounded text-sm overflow-x-auto">${content}</pre>
+          </details>
+        `;
+        return messageDiv;
+      };
+
+      // Message handling
+      const addMessage = (message) => {
+        let messageElement;
 
         if (message.tool_calls) {
           message.tool_calls.forEach((toolCall) => {
-            // Render tool calls with expandable details
-            messageDiv.className = `mb-2 p-2 rounded-lg bg-gray-200`;
-            const summary = document.createElement('summary');
-            summary.textContent = `Tool Call: ${toolCall.function.name}`;
-            summary.className = 'cursor-pointer font-semibold';
-
-            const details = document.createElement('details');
-            details.appendChild(summary);
-
-            const pre = document.createElement('pre');
-            pre.textContent = JSON.stringify(JSON.parse(toolCall.function.arguments), null, 2);
-            pre.className = 'mt-2 p-2 bg-gray-100 rounded text-sm overflow-x-auto';
-
-            details.appendChild(pre);
-            messageDiv.appendChild(details);
+            messageElement = createExpandableInfo(
+              `Tool Call: ${toolCall.function.name}`,
+              JSON.stringify(toolCall.function.arguments, null, 2)
+            );
+            chatContainer.appendChild(messageElement);
           });
         } else if (message.tool_call_id) {
-          // Render tool responses with expandable details
-          messageDiv.className = `mb-2 p-2 rounded-lg bg-gray-200`;
-          const summary = document.createElement('summary');
-          summary.textContent = 'Tool Response';
-          summary.className = 'cursor-pointer font-semibold';
-
-          const details = document.createElement('details');
-          details.appendChild(summary);
-
-          const pre = document.createElement('pre');
-          pre.textContent = JSON.stringify(JSON.parse(message.content), null, 2);
-          pre.className = 'mt-2 p-2 bg-gray-100 rounded text-sm overflow-x-auto';
-
-          details.appendChild(pre);
-          messageDiv.appendChild(details);
-        } else {
-          // Render regular user and assistant messages
-          messageDiv.className = `mb-2 p-2 rounded-lg ${message.role === 'user' ? 'bg-blue-100 text-right' : 'bg-gray-100'}`;
-          messageDiv.textContent = `${message.role === 'user' ? 'You' : 'Assistant'}: ${message.content}`;
+          messageElement = createExpandableInfo('Tool Response', message.content);
+          chatContainer.appendChild(messageElement);
+        } else if (message.role === 'system' || message.isHiddenMessage) {
+          messageElement = createExpandableInfo(
+            message.isHiddenMessage ? 'Hidden Message' : 'System Message',
+            message.content
+          );
+          chatContainer.appendChild(messageElement);
+        } else if (message.content !== '') {
+          messageElement = createMessageElement(message.role, message.content);
+          chatContainer.appendChild(messageElement);
+        } else if (message.command !== '' && message.command !== undefined) {
+          messageElement = createExpandableInfo(`Command: ${message.command}`, '');
+          chatContainer.appendChild(messageElement);
         }
 
-        // Add the message to the chat container
-        chatContainer.appendChild(messageDiv);
-
-        // Scroll to the bottom of the chat container
         chatContainer.scrollTop = chatContainer.scrollHeight;
 
-        // Add the message to the chat history, unless it's marked as hidden
-        if (!message.isHiddenMessage) {
+        if (
+          !(
+            message.role === 'user' &&
+            message.content === '' &&
+            (message.command === '' || message.command === undefined)
+          )
+        ) {
+          console.log('Adding message to history', message);
           chatHistory.push(message);
         }
-      }
+      };
 
-      /**
-       * Adds a loading indicator to the chat interface.
-       */
-      function addLoadingIndicator() {
+      const addLoadingIndicator = () => {
         const loadingDiv = document.createElement('div');
         loadingDiv.id = 'loading-indicator';
         loadingDiv.className = 'mb-2 p-2 bg-gray-100 rounded-lg';
         loadingDiv.textContent = 'Assistant is typing...';
         chatContainer.appendChild(loadingDiv);
         chatContainer.scrollTop = chatContainer.scrollHeight;
-      }
+      };
 
-      /**
-       * Removes the loading indicator from the chat interface.
-       */
-      function removeLoadingIndicator() {
-        const loadingIndicator = document.getElementById('loading-indicator');
-        if (loadingIndicator) {
-          loadingIndicator.remove();
-        }
-      }
+      const removeLoadingIndicator = () => {
+        document.getElementById('loading-indicator')?.remove();
+      };
 
-      /**
-       * Sends a message to the server and processes the response.
-       * @param {string} message - The message to send.
-       * @param {string} [command=''] - Optional command for special messages.
-       */
-      async function sendMessage(message, command = '') {
+      // API interaction
+      const sendMessage = async (message, command = '') => {
         try {
-          addLoadingIndicator();
-
-          const payload = {
-            message,
-            history: chatHistory,
-            command,
-          };
-
-          const response = await fetch('/chat', {
+          const responseP = fetch('/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
+            body: JSON.stringify({ message, history: chatHistory, command }),
           });
+          addMessage({ role: 'user', content: message, ...(command ? { command } : {}) });
 
-          if (!response.ok) {
-            throw new Error('Failed to get response');
-          }
-
+          addLoadingIndicator();
+          const response = await responseP;
+          if (!response.ok) throw new Error('Failed to get response');
           const data = await response.json();
           removeLoadingIndicator();
 
-          // Process and display the response
           if (data.response && Array.isArray(data.response)) {
-            data.response.slice(chatHistory.length + 1).forEach((message) => {
-              if (['tool', 'assistant'].includes(message.role) && !message.isHiddenMessage) {
-                // Handle assistant messages and tool responses
-                addMessage(message);
-              } else {
-                // Skip system and hidden user messages
-                if (
-                  message.role !== 'system' &&
-                  !(message.role === 'user' && message.isHiddenMessage)
-                ) {
-                  console.error('Unknown message role:', message);
-                }
-              }
-            });
+            data.response.slice(chatHistory.length).forEach(addMessage);
+            chatHistory = data.response;
           } else {
             throw new Error('Invalid response format');
           }
@@ -205,28 +170,17 @@
           });
           console.error('Error:', error);
         }
-      }
+      };
 
-      // Automatically send a blank message when the page loads
-      window.addEventListener('load', () => {
-        sendMessage('');
-      });
-
-      // Handle form submission
-      chatForm.addEventListener('submit', async (e) => {
+      // Event listeners
+      chatForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const message = userInput.value.trim();
         if (!message) return;
-
-        // Display the user message in the chat
-        addMessage({ role: 'user', content: message });
         userInput.value = '';
-
-        await sendMessage(message);
+        sendMessage(message);
       });
 
-      // Handle end chat button click
-      const endChatButton = document.getElementById('end-chat');
       endChatButton.addEventListener('click', async () => {
         await sendMessage('', 'end_conversation');
         endChatButton.disabled = true;
@@ -235,14 +189,26 @@
         chatForm.querySelector('button[type="submit"]').disabled = true;
       });
 
-      // Handle suggested answer clicks
-      const suggestedAnswers = document.getElementById('suggested-answers');
-      suggestedAnswers.addEventListener('click', async (e) => {
+      suggestedAnswers.addEventListener('click', (e) => {
         if (e.target.tagName === 'BUTTON') {
           const message = e.target.textContent;
-          addMessage({ role: 'user', content: message });
-          await sendMessage(message);
+          sendMessage(message);
         }
+      });
+
+      // Initialization
+      const loadSuggestedPrompts = () => {
+        SUGGESTED_PROMPTS.forEach((prompt) => {
+          const button = document.createElement('button');
+          button.textContent = prompt;
+          button.className = 'bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-sm';
+          suggestedAnswers.appendChild(button);
+        });
+      };
+
+      window.addEventListener('load', () => {
+        loadSuggestedPrompts();
+        sendMessage('');
       });
     </script>
   </body>
