@@ -80,7 +80,7 @@ export const TOOLS = {
     parameters: z.object({
       key: z.string().optional().describe('Optionally specify a key to read from the memory'),
     }),
-    // response: z.object({}),
+    response: z.array(z.object({ key: z.string(), value: z.string() })),
   },
   add_memory: {
     type: 'webhook',

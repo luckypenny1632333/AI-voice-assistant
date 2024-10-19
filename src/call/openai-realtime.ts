@@ -9,7 +9,7 @@ import { logger } from '@/utils/console-logger';
 import { getDuration } from '@/utils/datetime';
 import { ENV_IS_DEPLOYED } from '@/utils/environment';
 
-import { VOICE, getSystemMessage } from './agent/agent';
+import { VOICE, getInitialMessage, getSystemMessage } from './agent/agent';
 import { type AgentFunction, TOOLS, onTool } from './agent/tools';
 import { convertAgentFunctionToParseableTool } from './agent/utils/convert-agent-function';
 
@@ -156,13 +156,22 @@ const convertAgentFunctionToRTCTool = (tool: AgentFunction): FunctionCallTool =>
   };
 };
 
-const sendInitiateConversation = (openAIRealtimeClient: RealtimeClient, memory: unknown) => {
+const sendInitiateConversation = (
+  openAIRealtimeClient: RealtimeClient,
+  session: CallSession,
+  memory: { key: string; value: string }[]
+) => {
   logger.log(
     'Sending initiate conversation',
     undefined, // initiateConversation,
     loggerContext
   );
-  openAIRealtimeClient.sendUserMessageContent([{ type: 'input_text', text: `Hallo!` }]);
+  openAIRealtimeClient.sendUserMessageContent([
+    {
+      type: 'input_text',
+      text: getInitialMessage(memory, session),
+    },
+  ]);
 };
 
 export const handleOpenAIRealtimeConnected = (
@@ -173,18 +182,22 @@ export const handleOpenAIRealtimeConnected = (
   sendSessionUpdate(openAIRealtimeClient, session);
   addTools(openAIRealtimeClient, session);
 
-  // wait until session.streamSid is set
+  // wait until call stream is connected
+  // read memory (of caller) from webhook
+  // send initial message
   const waitForIncomingStream = () => {
     if (!session.streamSid) {
-      setTimeout(() => waitForIncomingStream, 500);
+      setTimeout(() => waitForIncomingStream, 100);
       return;
     }
     sendToWebhook({
       action: 'read_memory',
       session,
-    }).then((memory) => {
+    }).then((response) => {
+      if (response.action !== 'read_memory') return;
+      const memory = TOOLS[response.action].response.parse(response.response);
       logger.log('Memory read', { memory }, loggerContext);
-      setTimeout(() => sendInitiateConversation(openAIRealtimeClient, memory.response), 500);
+      setTimeout(() => sendInitiateConversation(openAIRealtimeClient, session, memory), 500);
     });
   };
   waitForIncomingStream();

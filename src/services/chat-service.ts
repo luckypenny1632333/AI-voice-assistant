@@ -1,10 +1,16 @@
 import dotenv from 'dotenv';
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import OpenAI from 'openai';
 import type { ChatCompletionTool } from 'openai/resources';
-import { z } from 'zod';
 
+import {
+  getConversationEndingMessage,
+  getInitialMessage,
+  getSystemMessage,
+} from '@/call/agent/agent';
 import { type AgentFunction, TOOLS, onTool } from '@/call/agent/tools';
 import { convertAgentFunctionToParseableTool } from '@/call/agent/utils/convert-agent-function';
+import type { CallSession } from '@/services/call-session';
 import { sendToWebhook } from '@/services/send-to-webhook';
 import { testSession } from '@/testdata/session.data';
 import { logger } from '@/utils/console-logger';
@@ -15,23 +21,13 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const chatMessageSchema = z.object({
-  role: z.enum(['system', 'user', 'assistant', 'function']),
-  content: z.string().nullable(),
-  name: z.string().optional(),
-  function_call: z.any().optional(),
-});
-
 type ChatMessage = OpenAI.Chat.ChatCompletionMessageParam;
 
 const loggerContext = 'ChatService';
 
 // Add a new type for our special messages
 type SpecialMessage = ChatMessage & {
-  tool_name?: string;
-  isToolCall?: boolean;
-  isToolResponse?: boolean;
-  toolDetails?: string;
+  isHiddenMessage?: boolean;
 };
 
 export const convertAgentFunctionToCompletionTool = (tool: AgentFunction): ChatCompletionTool => {
@@ -47,12 +43,67 @@ export const convertAgentFunctionToCompletionTool = (tool: AgentFunction): ChatC
   };
 };
 
+export const serveChat = async (_request: FastifyRequest, reply: FastifyReply) => {
+  return reply.sendFile('index.html');
+};
+
+export const handleChat = async (request: FastifyRequest, reply: FastifyReply) => {
+  const { message, history, command } = request.body as {
+    message: string;
+    history: SpecialMessage[];
+    command: string;
+  };
+
+  if (!message && history.length > 0) {
+    reply.code(400).send({ error: 'Message is required' });
+    return;
+  }
+
+  try {
+    const response = await handleChatMessage(message, history, command, testSession); // TODO: replace with proper session object
+    reply.send({ response });
+  } catch (error) {
+    logger.error('Error processing chat message:', error, undefined, loggerContext);
+    reply.code(500).send({ error: 'Internal server error' });
+  }
+};
+
 export async function handleChatMessage(
   message: string,
-  history: SpecialMessage[]
+  history: SpecialMessage[],
+  command = '',
+  session: CallSession
 ): Promise<SpecialMessage[]> {
   try {
-    const updatedHistory: SpecialMessage[] = [...history, { role: 'user', content: message }];
+    const updatedHistory: SpecialMessage[] = [...history];
+    if (!message) {
+      if (history.length === 0) {
+        // set initial message
+        const memory = await sendToWebhook({
+          action: 'read_memory',
+          session,
+        }).then((memory) => {
+          // logger.log('Memory read', { memory }, loggerContext);
+          if (memory.action !== 'read_memory' || !Array.isArray(memory.response)) return [];
+          return memory.response;
+        });
+        updatedHistory.push({ role: 'system', content: getSystemMessage(session) });
+        updatedHistory.push({
+          role: 'user',
+          content: getInitialMessage(memory, session),
+          isHiddenMessage: true,
+        });
+      } else if (command === 'end_conversation') {
+        updatedHistory.push({
+          role: 'user',
+          content: getConversationEndingMessage(session),
+          isHiddenMessage: true,
+        });
+      }
+    }
+    if (message) {
+      updatedHistory.push({ role: 'user', content: message });
+    }
     const tools = Object.values(TOOLS).map((tool) => convertAgentFunctionToCompletionTool(tool));
 
     const response = await openai.chat.completions.create({
@@ -82,7 +133,7 @@ export async function handleChatMessage(
           if (tool.type === 'webhook') {
             functionResult = await sendToWebhook({
               action: tool.name,
-              session: testSession, // TODO: replace with proper session object
+              session,
               parameters: 'parameters' in tool ? tool.parameters.parse(functionArgs) : {},
             });
           } else if ('function' in tool) {
@@ -93,9 +144,6 @@ export async function handleChatMessage(
             role: 'tool',
             content: JSON.stringify(functionResult),
             tool_call_id: toolCall.id,
-            tool_name: tool.name,
-            isToolResponse: true,
-            toolDetails: JSON.stringify(functionResult, null, 2),
           };
 
           updatedHistory.push(functionResultMessage);
@@ -108,6 +156,8 @@ export async function handleChatMessage(
       const finalResponse = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: updatedHistory,
+        tools: tools,
+        tool_choice: 'auto',
       });
 
       updatedHistory.push(finalResponse.choices[0].message as SpecialMessage);
@@ -115,7 +165,12 @@ export async function handleChatMessage(
 
     return updatedHistory;
   } catch (error) {
-    logger.error('Error in chat service:', error, undefined, loggerContext);
+    logger.error(
+      'Error in chat service:',
+      error,
+      { message, history, command, session },
+      loggerContext
+    );
     return [
       ...history,
       { role: 'assistant', content: 'Sorry, there was an error processing your request.' },

@@ -5,4 +5,4 @@ export const getMessageFromUnknownError = (error: unknown): string =>
     ? error.response?.data || error.message
     : error instanceof Error
       ? error.message
-      : error;
+      : JSON.stringify(error);

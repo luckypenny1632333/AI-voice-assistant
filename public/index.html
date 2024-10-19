@@ -6,17 +6,23 @@
     <title>Chat</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+      /* Custom styles for chat container */
       .chat-container {
-        height: calc(100vh - 200px);
+        height: calc(100vh - 240px);
         overflow-y: auto;
       }
     </style>
   </head>
-  <body class="bg-gray-100">
-    <div class="container mx-auto p-4">
+  <body class="bg-gray-100 flex flex-col h-screen">
+    <div class="container mx-auto p-4 flex flex-col h-full">
       <h1 class="text-3xl font-bold mb-4">Chat</h1>
-      <div id="chat-container" class="chat-container bg-white rounded-lg shadow-md p-4 mb-4"></div>
-      <form id="chat-form" class="flex">
+      <!-- Chat messages will be appended here -->
+      <div
+        id="chat-container"
+        class="chat-container bg-white rounded-lg shadow-md p-4 mb-4 flex-grow"
+      ></div>
+      <!-- User input form -->
+      <form id="chat-form" class="flex mb-2">
         <input
           type="text"
           id="user-input"
@@ -26,45 +32,105 @@
         />
         <button type="submit" class="bg-blue-500 text-white p-2 rounded-r-lg">Send</button>
       </form>
+
+      <!-- Suggested answers -->
+      <div id="suggested-answers" class="flex space-x-2 mb-2">
+        <button class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-sm">
+          Termin morgen 15 Uhr
+        </button>
+        <button class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-sm">
+          Wie geht's Eddy?
+        </button>
+        <button class="bg-gray-200 text-gray-700 px-3 py-1 rounded-lg text-sm">Suggestion 3</button>
+      </div>
+
+      <!-- End Chat button -->
+      <button
+        id="end-chat"
+        class="bg-red-500 text-white px-3 py-1 rounded-lg text-sm self-end mt-2"
+      >
+        End Chat
+      </button>
     </div>
 
     <script>
+      // DOM element references
       const chatContainer = document.getElementById('chat-container');
       const chatForm = document.getElementById('chat-form');
       const userInput = document.getElementById('user-input');
+
+      // Array to store chat history
       let chatHistory = [];
 
-      function addMessage(message, updateHistory = true) {
+      /**
+       * Adds a message to the chat interface and optionally updates the chat history.
+       * This function handles different types of messages, including user messages,
+       * assistant messages, and tool responses.
+       *
+       * @param {Object} message - The message object to add.
+       * @param {string} message.role - The role of the message sender ('user', 'assistant', or 'tool').
+       * @param {string} message.content - The content of the message.
+       * @param {string} [message.tool_call_id] - The ID of the tool call, if applicable.
+       * @param {boolean} [message.isHiddenMessage] - Whether the message should be hidden from the chat history.
+       */
+      function addMessage(message) {
         const messageDiv = document.createElement('div');
 
-        if (message.isToolCall || message.isToolResponse) {
+        if (message.tool_calls) {
+          message.tool_calls.forEach((toolCall) => {
+            // Render tool calls with expandable details
+            messageDiv.className = `mb-2 p-2 rounded-lg bg-gray-200`;
+            const summary = document.createElement('summary');
+            summary.textContent = `Tool Call: ${toolCall.function.name}`;
+            summary.className = 'cursor-pointer font-semibold';
+
+            const details = document.createElement('details');
+            details.appendChild(summary);
+
+            const pre = document.createElement('pre');
+            pre.textContent = JSON.stringify(JSON.parse(toolCall.function.arguments), null, 2);
+            pre.className = 'mt-2 p-2 bg-gray-100 rounded text-sm overflow-x-auto';
+
+            details.appendChild(pre);
+            messageDiv.appendChild(details);
+          });
+        } else if (message.tool_call_id) {
+          // Render tool responses with expandable details
           messageDiv.className = `mb-2 p-2 rounded-lg bg-gray-200`;
           const summary = document.createElement('summary');
-          summary.textContent = message.content;
+          summary.textContent = 'Tool Response';
           summary.className = 'cursor-pointer font-semibold';
 
           const details = document.createElement('details');
           details.appendChild(summary);
 
           const pre = document.createElement('pre');
-          pre.textContent = message.toolDetails;
+          pre.textContent = JSON.stringify(JSON.parse(message.content), null, 2);
           pre.className = 'mt-2 p-2 bg-gray-100 rounded text-sm overflow-x-auto';
 
           details.appendChild(pre);
           messageDiv.appendChild(details);
         } else {
+          // Render regular user and assistant messages
           messageDiv.className = `mb-2 p-2 rounded-lg ${message.role === 'user' ? 'bg-blue-100 text-right' : 'bg-gray-100'}`;
           messageDiv.textContent = `${message.role === 'user' ? 'You' : 'Assistant'}: ${message.content}`;
         }
 
+        // Add the message to the chat container
         chatContainer.appendChild(messageDiv);
+
+        // Scroll to the bottom of the chat container
         chatContainer.scrollTop = chatContainer.scrollHeight;
 
-        if (updateHistory) {
+        // Add the message to the chat history, unless it's marked as hidden
+        if (!message.isHiddenMessage) {
           chatHistory.push(message);
         }
       }
 
+      /**
+       * Adds a loading indicator to the chat interface.
+       */
       function addLoadingIndicator() {
         const loadingDiv = document.createElement('div');
         loadingDiv.id = 'loading-indicator';
@@ -74,6 +140,9 @@
         chatContainer.scrollTop = chatContainer.scrollHeight;
       }
 
+      /**
+       * Removes the loading indicator from the chat interface.
+       */
       function removeLoadingIndicator() {
         const loadingIndicator = document.getElementById('loading-indicator');
         if (loadingIndicator) {
@@ -81,22 +150,25 @@
         }
       }
 
-      chatForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const message = userInput.value.trim();
-        if (!message) return;
-
-        // Display the user message in the chat, but don't add it to chatHistory yet
-        addMessage({ role: 'user', content: message }, false);
-        userInput.value = '';
-
-        addLoadingIndicator();
-
+      /**
+       * Sends a message to the server and processes the response.
+       * @param {string} message - The message to send.
+       * @param {string} [command=''] - Optional command for special messages.
+       */
+      async function sendMessage(message, command = '') {
         try {
+          addLoadingIndicator();
+
+          const payload = {
+            message,
+            history: chatHistory,
+            command,
+          };
+
           const response = await fetch('/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message, history: chatHistory }),
+            body: JSON.stringify(payload),
           });
 
           if (!response.ok) {
@@ -106,34 +178,20 @@
           const data = await response.json();
           removeLoadingIndicator();
 
-          // Add new messages from the response to the chat and update chatHistory
+          // Process and display the response
           if (data.response && Array.isArray(data.response)) {
             data.response.slice(chatHistory.length + 1).forEach((message) => {
-              if (message.role === 'assistant' && message.content === null && message.tool_calls) {
-                // Handle tool call
-                addMessage(
-                  {
-                    role: 'assistant',
-                    content: 'Calling tool: ' + message.tool_calls[0].function.name,
-                    isToolCall: true,
-                    toolDetails: JSON.stringify(message.tool_calls[0].function, null, 2),
-                  },
-                  true
-                );
-              } else if (message.role === 'tool') {
-                // Handle tool response
-                addMessage(
-                  {
-                    role: 'tool',
-                    content: 'Tool response: ' + message.tool_name,
-                    isToolResponse: true,
-                    toolDetails: message.content,
-                  },
-                  true
-                );
+              if (['tool', 'assistant'].includes(message.role) && !message.isHiddenMessage) {
+                // Handle assistant messages and tool responses
+                addMessage(message);
               } else {
-                // Handle regular messages
-                addMessage(message, true);
+                // Skip system and hidden user messages
+                if (
+                  message.role !== 'system' &&
+                  !(message.role === 'user' && message.isHiddenMessage)
+                ) {
+                  console.error('Unknown message role:', message);
+                }
               }
             });
           } else {
@@ -141,14 +199,49 @@
           }
         } catch (error) {
           removeLoadingIndicator();
-          addMessage(
-            {
-              role: 'assistant',
-              content: 'Sorry, there was an error processing your request.',
-            },
-            true
-          );
+          addMessage({
+            role: 'assistant',
+            content: 'Sorry, there was an error processing your request.',
+          });
           console.error('Error:', error);
+        }
+      }
+
+      // Automatically send a blank message when the page loads
+      window.addEventListener('load', () => {
+        sendMessage('');
+      });
+
+      // Handle form submission
+      chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const message = userInput.value.trim();
+        if (!message) return;
+
+        // Display the user message in the chat
+        addMessage({ role: 'user', content: message });
+        userInput.value = '';
+
+        await sendMessage(message);
+      });
+
+      // Handle end chat button click
+      const endChatButton = document.getElementById('end-chat');
+      endChatButton.addEventListener('click', async () => {
+        await sendMessage('', 'end_conversation');
+        endChatButton.disabled = true;
+        endChatButton.textContent = 'Chat Ended';
+        userInput.disabled = true;
+        chatForm.querySelector('button[type="submit"]').disabled = true;
+      });
+
+      // Handle suggested answer clicks
+      const suggestedAnswers = document.getElementById('suggested-answers');
+      suggestedAnswers.addEventListener('click', async (e) => {
+        if (e.target.tagName === 'BUTTON') {
+          const message = e.target.textContent;
+          addMessage({ role: 'user', content: message });
+          await sendMessage(message);
         }
       });
     </script>

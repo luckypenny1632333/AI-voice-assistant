@@ -1,11 +1,24 @@
+import chalk from 'chalk';
 import readline from 'readline';
 import util from 'util';
 
+import { depthLimiter } from './depth-limiter';
+
 export class ConsoleLogger {
+  depthLimit = 2;
   lastCount = 0;
+  contextColor = chalk.cyan;
   lastLine?: string;
   lastData?: string;
   isLogData = !process.env.REPLIT_DEPLOYMENT;
+
+  // Combined config object for execution time thresholds and colors
+  executionTimeConfig = [
+    { threshold: 100, color: chalk.green },
+    { threshold: 400, color: chalk.yellow },
+    { threshold: 800, color: chalk.red },
+    { threshold: Infinity, color: chalk.redBright },
+  ];
 
   debug(line: string, data?: Record<string, unknown>, context?: string) {
     if (!this.isLogData) {
@@ -13,9 +26,12 @@ export class ConsoleLogger {
     }
   }
 
-  log(line: string, data?: Record<string, unknown>, context?: string) {
+  log(line: string, data?: Record<string, unknown>, context?: string, executionTime?: number) {
     if (context) {
-      line = `[${context}] ${line}`;
+      line = `${this.contextColor(`[${context}]`)} ${line}`;
+    }
+    if (executionTime !== undefined) {
+      line += this.formatExecutionTime(executionTime);
     }
     if (this.lastLine === line && (!this.isLogData || this.lastData === JSON.stringify(data))) {
       this.lastCount++;
@@ -26,18 +42,25 @@ export class ConsoleLogger {
         console.log();
       }
       this.lastLine = line;
-      this.lastData = JSON.stringify(data);
+      this.lastData = JSON.stringify(data, depthLimiter(this.depthLimit));
       this.lastCount = 0;
       console.log(
         line,
         data && this.isLogData
           ? util.inspect(data, {
-              depth: null,
+              depth: this.depthLimit,
               colors: true,
             })
           : ''
       );
     }
+  }
+
+  private formatExecutionTime(time: number): string {
+    const { color } =
+      this.executionTimeConfig.find((config) => time < config.threshold) ||
+      this.executionTimeConfig[this.executionTimeConfig.length - 1];
+    return ` ${color(`(${time}ms)`)}`;
   }
 
   // Overwrite the last line in the console
@@ -47,9 +70,18 @@ export class ConsoleLogger {
     process.stdout.write(text); // Write the new content
   }
 
-  error(line: string, error?: unknown, data?: Record<string, unknown>, context?: string) {
+  error(
+    line: string,
+    error?: unknown,
+    data?: Record<string, unknown>,
+    context?: string,
+    executionTime?: number
+  ) {
     if (context) {
-      line = `[${context}] ${line}`;
+      line = `${this.contextColor(`[${context}]`)} ${line}`;
+    }
+    if (executionTime !== undefined) {
+      line += this.formatExecutionTime(executionTime);
     }
     console.error(line);
     if (error && this.isLogData) {

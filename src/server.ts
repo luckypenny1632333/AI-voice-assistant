@@ -7,7 +7,7 @@ import path from 'path';
 import 'reflect-metadata';
 
 import { handleIncomingCall, handleMediaStream } from '@/call';
-import { handleChatMessage } from '@/services/chat-service';
+import { handleChat, serveChat } from '@/services/chat-service';
 import { logger } from '@/utils/console-logger';
 import { ENV_IS_DEPLOYED, PORT } from '@/utils/environment';
 
@@ -42,36 +42,17 @@ fastify.register(fastifyStatic, {
   prefix: '/public/', // This is optional and will add /public to the URLs
 });
 
-// Serve the Chat HTML file
-fastify.get('/chat', async (_request, reply) => {
-  return reply.sendFile('index.html');
-});
-
-fastify.post('/chat', async (request, reply) => {
-  const { message, history } = request.body as { message: string; history: any[] };
-
-  if (!message) {
-    reply.code(400).send({ error: 'Message is required' });
-    return;
-  }
-
-  try {
-    const response = await handleChatMessage(message, history);
-    reply.send({ response });
-  } catch (error) {
-    logger.error('Error processing chat message:', error, undefined, loggerContext);
-    reply.code(500).send({ error: 'Internal server error' });
-  }
-});
-
 // Register rate limiting plugin
 fastify.register(fastifyRateLimit, {
   max: 100,
   timeWindow: '1 minute',
 });
 
-// Test Routes
 if (!ENV_IS_DEPLOYED) {
+  fastify.get('/chat', serveChat); // Serve the Chat HTML file
+  fastify.post('/chat', handleChat); // Handle the Chat POST request
+
+  // Test Routes
   useTestRoutes(fastify, loggerContext);
 }
 
