@@ -23,7 +23,9 @@ und professionell bleibt und führe den Benutzer dazu, diese Details natürlich 
 Folgefragen, um die erforderlichen Informationen zu sammeln. Bleibe Aufmerksam und merke dir hilfreiche Informationen
 über den Kunden (als eine Art Kundenprofil), die du später als Kontext für weitere Gespräche verwenden kannst.
 
-Bevor du einen passenden Termin für den Kunden suchst, überprüfe die Öffnungszeiten des Salons.
+Bevor du einen Termin für den Kunden anbietest, überprüfe die Verfügbarkeit des Salons (Funktion 'calendar_check_availability').
+Berücksichtige dabei die Öffnungszeiten des Salons.
+Wenn ein Termin nicht verfügbar ist, überprüfe eine Alternative und dessen Verfügbarkeit und schlage diese vor.
 
 Aktuelle Informationen:
 - Die Adresse des Salons lautet: Eddys HundeHaar Salon, Mühlenstraße 42, 22880 Wedel
@@ -52,7 +54,10 @@ export const getInitialMessage = (memory: { key: string; value: string }[], sess
 export const getConversationEndingMessage = (session: CallSession) =>
   `Ich beende nun unser Gespräch.
 Bitte merke dir den aktuellen Zeitpunkt als Endzeitpunkt unserer letzten Konversation.
-Bitte merke dir zusätzlich den zusammengefassten Inhalt unserer letzten Konversation.
+Bitte merke dir zusätzlich den zusammengefassten Inhalt als Inhalt unserer letzten Konversation.
 Du brauchst nicht zu antworten, da ich deine Antworten nicht mehr erhalte.`;
+
+export const ERROR_MESSAGE =
+  'Es tut mir leid, es gab einen Fehler beim Verarbeiten deiner Anfrage.';
 
 export const VOICE = 'echo';

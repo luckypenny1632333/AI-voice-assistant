@@ -34,6 +34,7 @@ interface BaseFunction<
 > {
   type: 'call' | 'webhook';
   name: string;
+  isHidden?: boolean;
   description?: string | undefined;
   parameters?: Parameters;
   response?: Response;
@@ -64,6 +65,7 @@ type ToolsConfig = Record<string, AgentFunction>;
 export const TOOLS = {
   call_summary: {
     type: 'webhook',
+    isHidden: true,
     name: 'call_summary',
     description: 'returns a summary of the call',
     response: z.object({
@@ -102,19 +104,33 @@ export const TOOLS = {
   calendar_check_availability: {
     type: 'webhook',
     name: 'calendar_check_availability',
-    description: 'Checks the availability of a calendar',
+    description:
+      "Checks the availability of a calendar. Checks if an appointment is available from 'startAt' to 'endAt'.",
     parameters: z.object({
       startAt: z.string().describe('The start date and time of the availability check'),
       endAt: z.string().describe('The end date and time of the availability check'),
     }),
+    response: z.object({
+      available: z.boolean().describe('Whether the calendar is available'),
+    }),
   },
-  calendar_create_event: {
+  calendar_create_appointment: {
     type: 'webhook',
-    name: 'calendar_create_event',
-    description: 'Creates an event in a calendar',
+    name: 'calendar_create_appointment',
+    description: 'Creates an appointment in a calendar',
     parameters: z.object({
-      startAt: z.string().describe('The start date and time of the event'),
-      endAt: z.string().describe('The end date and time of the event'),
+      startAt: z.string().describe('The start date and time of the appointment'),
+      endAt: z.string().describe('The end date and time of the appointment'),
+      title: z
+        .string()
+        .describe(
+          'The title of the appointment. Please include requested service title and customer name.'
+        ),
+      description: z
+        .string()
+        .describe(
+          'The detailed description of the appointment. Please include call details, detailed contact information (e.g. caller number, name), requested service information and any other relevant information.'
+        ),
     }),
   },
   web_scraper: {

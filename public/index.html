@@ -52,7 +52,11 @@
 
     <script>
       // Constants
-      const SUGGESTED_PROMPTS = ['Termin morgen 15 Uhr zum Waschen', "Wie geht's Eddy?"];
+      const SUGGESTED_PROMPTS = [
+        'Ist morgen um 15 Uhr noch was frei?',
+        'Termin morgen 15 Uhr zum Waschen',
+        "Wie geht's Eddy?",
+      ];
 
       // DOM element references
       const chatContainer = document.getElementById('chat-container');
@@ -72,9 +76,9 @@
         return messageDiv;
       };
 
-      const createExpandableInfo = (title, content) => {
+      const createExpandableInfo = (title, content, role = 'assistant') => {
         const messageDiv = document.createElement('div');
-        messageDiv.className = 'mb-2 p-2 rounded-lg bg-gray-200';
+        messageDiv.className = `mb-2 p-2 rounded-lg ${role === 'user' ? 'bg-blue-100 text-right' : 'bg-gray-100'}`;
         messageDiv.innerHTML = `
           <details>
             <summary class="cursor-pointer font-semibold">${title}</summary>
@@ -82,6 +86,19 @@
           </details>
         `;
         return messageDiv;
+      };
+
+      const isJSON = (str) => {
+        try {
+          JSON.parse(str);
+          return true;
+        } catch (e) {
+          return false;
+        }
+      };
+
+      const formatJSON = (str) => {
+        return isJSON(str) ? JSON.stringify(JSON.parse(str), null, 2) : str;
       };
 
       // Message handling
@@ -92,24 +109,24 @@
           message.tool_calls.forEach((toolCall) => {
             messageElement = createExpandableInfo(
               `Tool Call: ${toolCall.function.name}`,
-              JSON.stringify(toolCall.function.arguments, null, 2)
+              formatJSON(toolCall.function.arguments)
             );
             chatContainer.appendChild(messageElement);
           });
         } else if (message.tool_call_id) {
-          messageElement = createExpandableInfo('Tool Response', message.content);
+          messageElement = createExpandableInfo('Tool Response', formatJSON(message.content));
           chatContainer.appendChild(messageElement);
         } else if (message.role === 'system' || message.isHiddenMessage) {
           messageElement = createExpandableInfo(
             message.isHiddenMessage ? 'Hidden Message' : 'System Message',
-            message.content
+            formatJSON(message.content)
           );
           chatContainer.appendChild(messageElement);
         } else if (message.content !== '') {
           messageElement = createMessageElement(message.role, message.content);
           chatContainer.appendChild(messageElement);
         } else if (message.command !== '' && message.command !== undefined) {
-          messageElement = createExpandableInfo(`Command: ${message.command}`, '');
+          messageElement = createExpandableInfo(`Command: ${message.command}`, '', 'user');
           chatContainer.appendChild(messageElement);
         }
 
@@ -172,7 +189,7 @@
         }
       };
 
-      // Event listeners
+      // Send user message handling
       chatForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const message = userInput.value.trim();
@@ -181,22 +198,26 @@
         sendMessage(message);
       });
 
+      // End chat handling
       endChatButton.addEventListener('click', async () => {
         await sendMessage('', 'end_conversation');
         endChatButton.disabled = true;
         endChatButton.textContent = 'Chat Ended';
         userInput.disabled = true;
+        suggestedAnswers.removeEventListener('click', suggestedAnswersClickHandler);
         chatForm.querySelector('button[type="submit"]').disabled = true;
       });
 
-      suggestedAnswers.addEventListener('click', (e) => {
+      // Suggested answers handling
+      const suggestedAnswersClickHandler = (e) => {
         if (e.target.tagName === 'BUTTON') {
           const message = e.target.textContent;
           sendMessage(message);
         }
-      });
+      };
+      suggestedAnswers.addEventListener('click', suggestedAnswersClickHandler);
 
-      // Initialization
+      // Load suggested answers
       const loadSuggestedPrompts = () => {
         SUGGESTED_PROMPTS.forEach((prompt) => {
           const button = document.createElement('button');
@@ -206,6 +227,7 @@
         });
       };
 
+      // Initialization
       window.addEventListener('load', () => {
         loadSuggestedPrompts();
         sendMessage('');

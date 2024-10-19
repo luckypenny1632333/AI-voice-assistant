@@ -1,5 +1,7 @@
 import dotenv from 'dotenv';
 
+import { getDuration } from '@/utils/datetime';
+
 import { type CallSession, CallSessionSchema } from './types/call-session';
 
 const loggerContext = 'CallSessionService';
@@ -54,6 +56,18 @@ export class CallSessionService {
   static mapCalledNumberToAppId(callNumber: string): string {
     // add custom mapping here
     return callNumber.replace('+', '');
+  }
+
+  static addTranscript(session: CallSession, transcript: string, role = 'User'): void {
+    session.transcript += `[${getDuration(session.createdAt)}] ${role}: ${transcript}\n`;
+  }
+
+  static addUserTranscript(session: CallSession, transcript: string): void {
+    CallSessionService.addTranscript(session, transcript, 'User');
+  }
+
+  static addAgentTranscript(session: CallSession, transcript: string): void {
+    CallSessionService.addTranscript(session, transcript, 'Agent');
   }
 }
 export const callSessionService = new CallSessionService();

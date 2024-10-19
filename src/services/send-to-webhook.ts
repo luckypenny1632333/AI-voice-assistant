@@ -56,7 +56,7 @@ export const sendToWebhook = (async (payload) => {
         Authorization: `Bearer ${process.env.WEBHOOK_TOKEN}`,
       },
     });
-    // logger.log('Raw webhook response', { rawResponse: response.data, response }, loggerContext);
+    logger.log('Raw webhook response', { rawResponse: response.data }, loggerContext);
 
     // parse response
     const webhookResponse = {
@@ -64,7 +64,11 @@ export const sendToWebhook = (async (payload) => {
       status: response.data.status ?? response.status,
       message: response.data.message ?? response.statusText,
       ...('response' in tool && {
-        response: tool.response.parse(response.data.response),
+        response: tool.response.parse(
+          response.data.status && 'response' in response.data
+            ? response.data.response
+            : response.data
+        ),
       }),
     };
 

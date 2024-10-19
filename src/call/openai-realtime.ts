@@ -3,7 +3,7 @@ import type { ToolDefinitionType } from '@openai/realtime-api-beta/dist/lib/clie
 import type WebSocket from 'ws';
 
 import { endCall } from '@/providers/twilio';
-import type { CallSession } from '@/services/call-session';
+import { type CallSession, CallSessionService } from '@/services/call-session';
 import { sendToWebhook } from '@/services/send-to-webhook';
 import { logger } from '@/utils/console-logger';
 import { getDuration } from '@/utils/datetime';
@@ -241,7 +241,7 @@ export const handleOpenAIMessage = (
       const userMessage = message.transcript.trim();
 
       if (userMessage) {
-        session.transcript += `${timePrefix} User: ${userMessage}\n`;
+        CallSessionService.addUserTranscript(session, userMessage);
         logger.log(`${timePrefix} User (${session.id}): ${userMessage}`, undefined, loggerContext);
       } else {
         logger.log(`${timePrefix} User audio transcript is empty`, undefined, loggerContext);
@@ -262,7 +262,8 @@ export const handleOpenAIMessage = (
         ?.transcript.trim();
 
       if (agentMessage) {
-        session.transcript += `${timePrefix} Agent: ${agentMessage}\n`;
+        CallSessionService.addAgentTranscript(session, agentMessage);
+
         logger.log(
           `${timePrefix} Agent (${session.id}): ${agentMessage}`,
           undefined,
