@@ -142,8 +142,16 @@ const addAssistantErrorResponse = (updatedHistory: SpecialMessage[], session: Ca
 const getAssistantResponse = async (
   updatedHistory: SpecialMessage[],
   tools: ChatCompletionTool[],
-  session: CallSession
+  session: CallSession,
+  retryCount = 0,
+  maxRetries = 3
 ) => {
+  if (retryCount >= maxRetries) {
+    logger.error('Max retries reached for assistant response', undefined, undefined, loggerContext);
+    addAssistantErrorResponse(updatedHistory, session);
+    return;
+  }
+
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
     messages: updatedHistory,
@@ -163,11 +171,12 @@ const getAssistantResponse = async (
       } catch (error) {
         logger.error('Error in tool call', error, { toolCall }, loggerContext);
         addAssistantErrorResponse(updatedHistory, session);
+        return; // Stop the loop if there's an error
       }
     }
 
     // logger.log('Updated History', { updatedHistory }, loggerContext);
 
-    await getAssistantResponse(updatedHistory, tools, session);
+    await getAssistantResponse(updatedHistory, tools, session, retryCount + 1, maxRetries);
   }
 };
