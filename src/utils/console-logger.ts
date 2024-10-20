@@ -5,7 +5,7 @@ import util from 'util';
 import { depthLimiter } from './depth-limiter';
 
 export class ConsoleLogger {
-  depthLimit = 2;
+  depthLimit = 4;
   lastCount = 0;
   contextColor = chalk.cyan;
   lastLine?: string;

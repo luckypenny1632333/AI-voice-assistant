@@ -87,7 +87,7 @@ export async function handleChatMessage(
         }).then((memory) => {
           // logger.log('Memory read', { memory }, loggerContext);
           if (memory.action !== 'read_memory' || !Array.isArray(memory.response)) return [];
-          return memory.response;
+          return memory.response as { key: string; value: string; isGlobal?: boolean }[];
         });
         updatedHistory.push({ role: 'system', content: getSystemMessage(session) });
         updatedHistory.push({

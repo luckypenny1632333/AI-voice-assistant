@@ -82,7 +82,16 @@ export const TOOLS = {
     parameters: z.object({
       key: z.string().optional().describe('Optionally specify a key to read from the memory'),
     }),
-    response: z.array(z.object({ key: z.string(), value: z.string() })),
+    response: z.array(
+      z.object({
+        key: z.string(),
+        value: z.string(),
+        isGlobal: z
+          .boolean()
+          .optional()
+          .describe('Whether the memory is global for all users/customers'),
+      })
+    ),
   },
   add_memory: {
     type: 'webhook',
@@ -91,6 +100,12 @@ export const TOOLS = {
     parameters: z.object({
       key: z.string(),
       value: z.string(),
+      isGlobal: z
+        .boolean()
+        .optional()
+        .describe(
+          'Whether the memory is global for all users/customers. Default: false. Warning: Use with caution!'
+        ),
     }),
   },
   remove_memory: {
@@ -99,13 +114,19 @@ export const TOOLS = {
     description: 'Removes a key-value pair from the memory',
     parameters: z.object({
       key: z.string(),
+      isGlobal: z
+        .boolean()
+        .optional()
+        .describe(
+          'Whether the key to be removed is global for all users/customers. Default: false. Warning: Use with caution!'
+        ),
     }),
   },
   calendar_check_availability: {
     type: 'webhook',
     name: 'calendar_check_availability',
     description:
-      "Checks the availability of a calendar. Checks if an appointment is available from 'startAt' to 'endAt'.",
+      "Checks the availability of the calendar. Checks if an appointment is available from 'startAt' to 'endAt'.",
     parameters: z.object({
       startAt: z.string().describe('The start date and time of the availability check'),
       endAt: z.string().describe('The end date and time of the availability check'),
@@ -114,10 +135,10 @@ export const TOOLS = {
       available: z.boolean().describe('Whether the calendar is available'),
     }),
   },
-  calendar_create_appointment: {
+  calendar_schedule_appointment: {
     type: 'webhook',
-    name: 'calendar_create_appointment',
-    description: 'Creates an appointment in a calendar',
+    name: 'calendar_schedule_appointment',
+    description: 'Schedules an appointment in the calendar',
     parameters: z.object({
       startAt: z.string().describe('The start date and time of the appointment'),
       endAt: z.string().describe('The end date and time of the appointment'),
@@ -132,6 +153,21 @@ export const TOOLS = {
           'The detailed description of the appointment. Please include call details, detailed contact information (e.g. caller number, name), requested service information and any other relevant information.'
         ),
     }),
+  },
+  calendar_get_user_appointments: {
+    type: 'webhook',
+    name: 'calendar_get_user_appointments',
+    description: 'Returns all appointments for the user',
+    response: z.array(
+      z.object({
+        id: z.string(),
+        status: z.enum(['confirmed', 'tentative', 'cancelled']),
+        summary: z.string(),
+        description: z.string(),
+        start: z.object({ dateTime: z.string(), timeZone: z.string() }),
+        end: z.object({ dateTime: z.string(), timeZone: z.string() }),
+      })
+    ),
   },
   web_scraper: {
     type: 'webhook',
