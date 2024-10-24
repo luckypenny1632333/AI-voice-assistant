@@ -2,16 +2,14 @@ import type { RealtimeClient } from '@openai/realtime-api-beta';
 import type { ToolDefinitionType } from '@openai/realtime-api-beta/dist/lib/client';
 import type WebSocket from 'ws';
 
+import { Agent, agent } from '@/agent';
+import { type AppDataType, VOICE, getInitialMessage, getSystemMessage } from '@/agent/agent';
+import type { AgentFunction } from '@/agent/types';
 import { endCall } from '@/providers/twilio';
 import { type CallSession, CallSessionService } from '@/services/call-session';
 import { sendToWebhook } from '@/services/send-to-webhook';
 import { logger } from '@/utils/console-logger';
-import { getDuration } from '@/utils/datetime';
 import { ENV_IS_DEPLOYED } from '@/utils/environment';
-
-import { VOICE, getInitialMessage, getSystemMessage } from './agent/agent';
-import { type AgentFunction, TOOLS, onTool } from './agent/tools';
-import { convertAgentFunctionToParseableTool } from './agent/utils/convert-agent-function';
 
 // List of Event Types to log to the console
 const LOG_EVENT_TYPES = [
@@ -99,7 +97,7 @@ export const setupOpenAIRealtimeClient = (
       handleOpenAIRealtimeConnected(openAIRealtimeClient, session);
     })
     .catch((err) =>
-      logger.error('Error connecting to OpenAI Realtime API', err, undefined, loggerContext)
+      logger.error(`Error connecting to OpenAI Realtime API: ${err}`, err, undefined, loggerContext)
     );
 };
 
@@ -132,27 +130,51 @@ const sendSessionUpdate = (openAIRealtimeClient: RealtimeClient, session: CallSe
 };
 
 const addTools = (openAIRealtimeClient: RealtimeClient, session: CallSession) => {
-  Object.values(TOOLS)
+  logger.log(`Adding tools`, undefined, loggerContext);
+  agent
+    .getTools()
     .map((tool) => convertAgentFunctionToRTCTool(tool))
     .forEach((tool) =>
       openAIRealtimeClient.addTool(tool.definition, tool.handler(openAIRealtimeClient, session))
     );
 };
 
-const convertAgentFunctionToRTCTool = (tool: AgentFunction): FunctionCallTool => {
-  const parseableTool = convertAgentFunctionToParseableTool(tool);
+const convertAgentFunctionToRTCTool = (tool: AgentFunction<AppDataType>): FunctionCallTool => {
   return {
     definition: {
       type: 'function',
       name: tool.name,
       description: tool.description ?? '',
-      parameters: parseableTool.function.parameters ?? {},
+      parameters: Agent.getToolParameters(tool) ?? {},
     },
     handler:
       tool.type === 'call'
-        ? (openAIRealtimeClient, session) => (args?: unknown) => onTool(args, tool.function) // call `CallFunction`
-        : (openAIRealtimeClient, session) => (args?: unknown) =>
-            sendToWebhook({ action: tool.name, session, parameters: tool.parameters?.parse(args) }), // send `WebhookFunction` to webhook
+        ? (openAIRealtimeClient, session) => (args?: unknown) => {
+            logger.log(
+              `${CallSessionService.getTimePrefix(session)} Agent Tool Call (${session.id}): ${tool.name}`,
+              undefined,
+              loggerContext
+            );
+            return Agent.callFunction(
+              tool,
+              {
+                openAIRealtimeClient,
+                session,
+              },
+              args
+            ); // call `CallFunction`
+          }
+        : (openAIRealtimeClient, session) => (args?: unknown) => {
+            logger.log(
+              `${CallSessionService.getTimePrefix(session)} Agent Tool Call (Webhook) (${session.id}): ${tool.name}`,
+              undefined,
+              loggerContext
+            );
+            return sendToWebhook(
+              { action: tool.name, session, parameters: Agent.parseToolArguments(tool, args) },
+              tool.response
+            );
+          }, // send `WebhookFunction` to webhook
   };
 };
 
@@ -190,12 +212,15 @@ export const handleOpenAIRealtimeConnected = (
       setTimeout(() => waitForIncomingStream, 100);
       return;
     }
-    sendToWebhook({
-      action: 'read_memory',
-      session,
-    }).then((response) => {
+    sendToWebhook(
+      {
+        action: 'read_memory',
+        session,
+      },
+      agent.getToolResponseSchema('read_memory')
+    ).then((response) => {
       if (response.action !== 'read_memory') return;
-      const memory = TOOLS[response.action].response.parse(response.response);
+      const memory = agent.getTool(response.action)?.response?.parse(response.response);
       logger.log('Memory read', { memory }, loggerContext);
       setTimeout(() => sendInitiateConversation(openAIRealtimeClient, session, memory), 500);
     });
@@ -225,7 +250,7 @@ export const handleOpenAIMessage = (
   mediaStreamWs: WebSocket
 ) => {
   try {
-    const timePrefix = `[${getDuration(session.createdAt)}]`;
+    const timePrefix = CallSessionService.getTimePrefix(session);
 
     // Log received events
     if (!LOG_EVENT_TYPES_EXCLUDE.includes(message.type)) {
@@ -306,7 +331,7 @@ export const handleOpenAIMessage = (
     }
 
     if (message.type === 'input_audio_buffer.speech_started') {
-      logger.log('Speech Start:', message.type, loggerContext);
+      logger.log('Speech Start', message.type, loggerContext);
 
       // Clear any ongoing speech on Twilio side
       mediaStreamWs.send(
@@ -316,7 +341,7 @@ export const handleOpenAIMessage = (
         })
       );
 
-      logger.log('Cancelling AI speech from the server', undefined, loggerContext);
+      logger.log('Cancelling AI speech from the server', message.type, loggerContext);
 
       // Send interrupt message to OpenAI to cancel ongoing response
       openAIRealtimeClient.realtime.send('response.cancel', {});

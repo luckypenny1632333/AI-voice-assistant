@@ -1,68 +1,29 @@
 import { z } from 'zod';
 
+import { endCall } from '@/providers/twilio';
 import { logger } from '@/utils/console-logger';
-import { getMessageFromUnknownError } from '@/utils/errors';
+
+import type { AppDataType } from './agent';
+import type { ToolsConfig } from './types';
 
 const loggerContext = 'Tools';
 
-export async function onTool(args: unknown, handler: any, errorMessage?: string) {
-  try {
-    return (await handler(args)) ?? { success: true };
-  } catch (error: unknown) {
-    const errorMessageFromError = getMessageFromUnknownError(error);
-    logger.error(
-      'Error handling tool:',
-      errorMessageFromError,
-      typeof args === 'object' &&
-        args !== null &&
-        !Array.isArray(args) &&
-        Object.keys(args).length > 0
-        ? (args as Record<string, unknown>)
-        : undefined,
-      loggerContext
-    );
-    return {
-      success: false,
-      error: errorMessage ?? `Error handling tool: ${errorMessageFromError}`,
-    };
-  }
-}
-
-interface BaseFunction<
-  Parameters extends z.ZodType = z.ZodType,
-  Response extends z.ZodType = z.ZodType,
-> {
-  type: 'call' | 'webhook';
-  name: string;
-  isHidden?: boolean;
-  description?: string | undefined;
-  parameters?: Parameters;
-  response?: Response;
-  function:
-    | ((args: z.infer<Parameters>) => z.infer<Response> | Promise<z.infer<Response>>)
-    | undefined;
-  onCall?: ((args: z.infer<Parameters>) => unknown | Promise<unknown>) | undefined;
-  onComplete?: ((args: z.infer<Response>) => unknown | Promise<unknown>) | undefined;
-}
-
-interface CallFunction<
-  Parameters extends z.ZodType = z.ZodType,
-  Response extends z.ZodType = z.ZodType,
-> extends BaseFunction<Parameters, Response> {
-  type: 'call';
-}
-
-interface WebhookFunction<
-  Parameters extends z.ZodType = z.ZodType,
-  Response extends z.ZodType = z.ZodType,
-> extends Omit<BaseFunction<Parameters, Response>, 'function'> {
-  type: 'webhook';
-}
-
-export type AgentFunction = CallFunction | WebhookFunction;
-
-type ToolsConfig = Record<string, AgentFunction>;
 export const TOOLS = {
+  end_call: {
+    type: 'call',
+    name: 'end_call',
+    description: 'Ends the current call.',
+    function: (args: unknown, { session }: AppDataType) => {
+      // disconnect call
+      if (session.incomingCall?.CallSid) {
+        endCall(session.incomingCall.CallSid, session.incomingCall.CallerCountry)
+          .then(() => {
+            logger.log(`Call ${session.incomingCall?.CallSid} ended`, undefined, loggerContext);
+          })
+          .catch((err) => logger.error('Error ending call', err, undefined, loggerContext));
+      }
+    },
+  },
   call_summary: {
     type: 'webhook',
     isHidden: true,
@@ -184,6 +145,4 @@ export const TOOLS = {
       content: z.string().describe('The scraped content'),
     }),
   },
-} satisfies ToolsConfig;
-
-export type ToolTypes = (typeof TOOLS)[keyof typeof TOOLS];
+} satisfies ToolsConfig<AppDataType>;

@@ -2,6 +2,8 @@ import chalk from 'chalk';
 import readline from 'readline';
 import util from 'util';
 
+import { ENV_IS_DEPLOYED } from '@/utils/environment';
+
 import { depthLimiter } from './depth-limiter';
 
 export class ConsoleLogger {
@@ -33,7 +35,11 @@ export class ConsoleLogger {
     if (executionTime !== undefined) {
       line += this.formatExecutionTime(executionTime);
     }
-    if (this.lastLine === line && (!this.isLogData || this.lastData === JSON.stringify(data))) {
+    if (
+      this.lastLine === line &&
+      (!this.isLogData || this.lastData === JSON.stringify(data)) &&
+      !ENV_IS_DEPLOYED
+    ) {
       this.lastCount++;
       this.replaceLastLine(`${line} (${this.lastCount})`);
     } else {

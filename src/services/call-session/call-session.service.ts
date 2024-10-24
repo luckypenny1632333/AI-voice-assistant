@@ -69,5 +69,9 @@ export class CallSessionService {
   static addAgentTranscript(session: CallSession, transcript: string): void {
     CallSessionService.addTranscript(session, transcript, 'Agent');
   }
+
+  static getTimePrefix(session: Pick<CallSession, 'createdAt'>): string {
+    return `[${getDuration(session.createdAt)}]`;
+  }
 }
 export const callSessionService = new CallSessionService();

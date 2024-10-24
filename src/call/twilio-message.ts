@@ -1,6 +1,7 @@
 import { type RealtimeClient, RealtimeUtils } from '@openai/realtime-api-beta';
 import type WebSocket from 'ws';
 
+import { agent } from '@/agent';
 import { type CallSession, CallSessionService, callSessionService } from '@/services/call-session';
 import { sendToWebhook } from '@/services/send-to-webhook';
 import { logger } from '@/utils/console-logger';
@@ -106,10 +107,13 @@ export const handleTwilioWsClose = async (
   logger.debug('Full Transcript', { transcript: session.transcript }, loggerContext);
 
   logger.log(`Sending session to webhook: action 'call_summary'`, undefined, loggerContext);
-  await sendToWebhook({
-    session,
-    action: 'call_summary',
-  });
+  await sendToWebhook(
+    {
+      session,
+      action: 'call_summary',
+    },
+    agent.getToolResponseSchema('call_summary')
+  );
 
   // Clean up the session
   callSessionService.stopSession(session.id);

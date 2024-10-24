@@ -48,10 +48,10 @@ fastify.register(fastifyRateLimit, {
   timeWindow: '1 minute',
 });
 
-if (!ENV_IS_DEPLOYED) {
-  fastify.get('/chat', serveChat); // Serve the Chat HTML file
-  fastify.post('/chat', handleChat); // Handle the Chat POST request
+fastify.get('/chat', serveChat); // Serve the Chat HTML file
+fastify.post('/chat', handleChat); // Handle the Chat POST request
 
+if (!ENV_IS_DEPLOYED) {
   // Test Routes
   useTestRoutes(fastify, loggerContext);
 }

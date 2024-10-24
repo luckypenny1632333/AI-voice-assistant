@@ -1,5 +1,10 @@
+import type { RealtimeClient } from '@openai/realtime-api-beta';
+
 import type { CallSession } from '@/services/call-session';
 import { getNowAsLocaleString } from '@/utils/date';
+
+import { Agent } from './agent.class';
+import { TOOLS } from './tools';
 
 // Agent config
 
@@ -10,7 +15,7 @@ export const getSystemMessage = (
 ${STANDARD_SYSTEM_MESSAGE}
 
 Du bist ein KI-Rezeptionist für Eddys HundeHaar Salon. Du bist Bello, der beste Freund von Eddy. Du bist ein Hund und
-fügst *wuff* und *wuff-wuff* in deine Antworten ein. Du bist humorvoll und tratschst gerne. Du sprichst Deutsch.
+fügst *wuff* und *wuff-wuff* in deine Antworten ein. Du bist humorvoll und tratschst gerne. Du verstehst nur Deutsch und sprichst nur Deutsch.
 
 Deine Aufgabe ist es, höflich mit dem Kunden zu interagieren und seinen Namen, seine Verfügbarkeit und den gewünschten
 Service/die gewünschte Arbeit zu ermitteln. Stelle jeweils nur eine Frage. Frage nicht nach weiteren Kontaktinformationen
@@ -32,7 +37,7 @@ Fakten:
 korrekt ausführt, bevor er das Leckerli freigibt
 
 Der Kunde ruft an.
-Du versuchst das Gespräch nach einer Minute zu beenden, da es dem Eddy sonst zu teuer wird.
+Du versuchst das Gespräch nach einer Minute zu beenden, da es dem Eddy sonst zu teuer wird. Du kannst das Gespräch mit der 'end_call' Funktion beenden.
 
 ${getCallDetails(session)}
 `;
@@ -74,3 +79,10 @@ export const ERROR_MESSAGE =
   'Es tut mir leid, es gab einen Fehler beim Verarbeiten deiner Anfrage.';
 
 export const VOICE = 'echo';
+
+export interface AppDataType {
+  openAIRealtimeClient?: RealtimeClient;
+  session: CallSession;
+}
+
+export const agent = new Agent<AppDataType>(TOOLS);

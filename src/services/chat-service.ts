@@ -3,15 +3,14 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import OpenAI from 'openai';
 import type { ChatCompletionTool } from 'openai/resources';
 
+import { Agent, agent } from '@/agent';
 import {
   ERROR_MESSAGE,
   getConversationEndingMessage,
   getInitialMessage,
   getSystemMessage,
-} from '@/call/agent/agent';
-import { type AgentFunction } from '@/call/agent/tools';
-import { convertAgentFunctionToParseableTool } from '@/call/agent/utils/convert-agent-function';
-import { callTool, getToolsAsChatCompletionTools } from '@/call/agent/utils/get-tool';
+} from '@/agent/agent';
+import type { AgentFunction } from '@/agent/types';
 import { type CallSession, CallSessionService } from '@/services/call-session';
 import { sendToWebhook } from '@/services/send-to-webhook';
 import { testSession } from '@/testdata/session.data';
@@ -32,13 +31,14 @@ type SpecialMessage = ChatMessage & {
   isHiddenMessage?: boolean;
 };
 
-export const convertAgentFunctionToCompletionTool = (tool: AgentFunction): ChatCompletionTool => {
-  const parseableTool = convertAgentFunctionToParseableTool(tool);
+export const convertAgentFunctionToCompletionTool = <AppData extends {} = {}>(
+  tool: AgentFunction<AppData>
+): ChatCompletionTool => {
   return {
     type: 'function',
     function: {
       name: tool.name,
-      parameters: parseableTool.function.parameters ?? {},
+      parameters: Agent.getToolParameters(tool) ?? {},
       strict: true,
       ...(tool.description ? { description: tool.description } : undefined),
     },
@@ -81,10 +81,13 @@ export async function handleChatMessage(
     if (!message) {
       if (history.length === 0) {
         // set initial message
-        const memory = await sendToWebhook({
-          action: 'read_memory',
-          session,
-        }).then((memory) => {
+        const memory = await sendToWebhook(
+          {
+            action: 'read_memory',
+            session,
+          },
+          agent.getToolResponseSchema('read_memory')
+        ).then((memory) => {
           // logger.log('Memory read', { memory }, loggerContext);
           if (memory.action !== 'read_memory' || !Array.isArray(memory.response)) return [];
           return memory.response as { key: string; value: string; isGlobal?: boolean }[];
@@ -102,10 +105,13 @@ export async function handleChatMessage(
           content: getConversationEndingMessage(session),
           isHiddenMessage: true,
         });
-        const callSummaryResponse = await sendToWebhook({
-          session,
-          action: 'call_summary',
-        });
+        const callSummaryResponse = await sendToWebhook(
+          {
+            session,
+            action: 'call_summary',
+          },
+          agent.getToolResponseSchema('call_summary')
+        );
         updatedHistory.push({
           role: 'user',
           content: JSON.stringify(callSummaryResponse),
@@ -118,6 +124,7 @@ export async function handleChatMessage(
       updatedHistory.push({ role: 'user', content: message });
     }
     const tools = getToolsAsChatCompletionTools();
+    tools.push();
 
     await getAssistantResponse(updatedHistory, tools, session);
 
@@ -178,5 +185,63 @@ const getAssistantResponse = async (
     // logger.log('Updated History', { updatedHistory }, loggerContext);
 
     await getAssistantResponse(updatedHistory, tools, session, retryCount + 1, maxRetries);
+  }
+};
+
+export const getToolsAsChatCompletionTools = () => {
+  return agent
+    .getTools()
+    .filter((t) => !('isHidden' in t) || ('isHidden' in t && t.isHidden))
+    .map((tool) => convertAgentFunctionToCompletionTool(tool));
+};
+
+export const callTool = async (
+  toolCall: OpenAI.Chat.Completions.ChatCompletionMessageToolCall,
+  session: CallSession
+): Promise<OpenAI.Chat.ChatCompletionMessageParam> => {
+  const functionName = toolCall.function.name;
+  const functionArgs = JSON.parse(toolCall.function.arguments);
+  const tool = agent.getTool(functionName);
+  if (!tool) {
+    return {
+      role: 'tool',
+      content: JSON.stringify({ error: `Tool ${functionName} not found` }),
+      tool_call_id: toolCall.id,
+    };
+  }
+
+  try {
+    let functionResult;
+    if (tool.type === 'webhook') {
+      functionResult = await sendToWebhook(
+        {
+          action: tool.name,
+          session,
+          parameters: Agent.parseToolArguments(tool, functionArgs),
+        },
+        tool.response
+      );
+    } else if (tool.type === 'call') {
+      functionResult = await Agent.callFunction(
+        tool,
+        {
+          session,
+        },
+        functionArgs
+      );
+    }
+
+    return {
+      role: 'tool',
+      content: JSON.stringify(functionResult),
+      tool_call_id: toolCall.id,
+    };
+  } catch (error) {
+    logger.error(`Error calling tool ${functionName}:`, error, undefined, loggerContext);
+    return {
+      role: 'tool',
+      content: JSON.stringify({ error: `Error calling tool ${functionName}` }),
+      tool_call_id: toolCall.id,
+    };
   }
 };
