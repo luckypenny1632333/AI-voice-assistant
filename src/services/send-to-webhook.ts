@@ -63,12 +63,14 @@ export const sendToWebhook = (async (payload, schema?: z.ZodType) => {
     );
 
     // handle empty response (remove empty objects from result array as n8n adds them when there is no result on db queries (e.g. postgres node))
-    const responseData = (
-      response.data.status && 'response' in response.data ? response.data.response : response.data
-    ).filter(
-      (r: unknown) =>
-        r !== undefined && r !== null && typeof r === 'object' && Object.keys(r).length > 0
-    );
+    let responseData =
+      response.data.status && 'response' in response.data ? response.data.response : response.data;
+    if (responseData !== undefined && responseData !== null && Array.isArray(responseData)) {
+      responseData = responseData.filter(
+        (r: unknown) =>
+          r !== undefined && r !== null && typeof r === 'object' && Object.keys(r).length > 0
+      );
+    }
 
     // parse response
     const webhookResponse = {
@@ -102,6 +104,6 @@ export const sendToWebhook = (async (payload, schema?: z.ZodType) => {
       loggerContext,
       executionTime
     );
-    throw new Error(`Error sending data to webhook: ${errorMessage}`);
+    throw new Error(`Error sending data to webhook: ${stringify(errorMessage)}`);
   }
 }) as WebhookConnector;
