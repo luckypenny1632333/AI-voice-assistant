@@ -10,6 +10,7 @@ import { type CallSession, CallSessionService } from '@/services/call-session';
 import { sendToWebhook } from '@/services/send-to-webhook';
 import { logger } from '@/utils/console-logger';
 import { ENV_IS_DEPLOYED } from '@/utils/environment';
+import { stringify } from '@/utils/stringify';
 
 // List of Event Types to log to the console
 const LOG_EVENT_TYPES = [
@@ -212,6 +213,7 @@ export const handleOpenAIRealtimeConnected = (
       setTimeout(() => waitForIncomingStream, 100);
       return;
     }
+    logger.log(`Stream connected: ${session.streamSid}`, undefined, loggerContext);
     sendToWebhook(
       {
         action: 'read_memory',
@@ -221,7 +223,7 @@ export const handleOpenAIRealtimeConnected = (
     ).then((response) => {
       if (response.action !== 'read_memory') return;
       const memory = agent.getTool(response.action)?.response?.parse(response.response);
-      logger.log('Memory read', { memory }, loggerContext);
+      logger.log(`Memory read: ${stringify(memory)}`, { memory }, loggerContext);
       setTimeout(() => sendInitiateConversation(openAIRealtimeClient, session, memory), 500);
     });
   };
@@ -327,7 +329,7 @@ export const handleOpenAIMessage = (
           payload: Buffer.from(message.delta, 'base64').toString('base64'),
         },
       };
-      mediaStreamWs.send(JSON.stringify(audioDelta));
+      mediaStreamWs.send(stringify(audioDelta));
     }
 
     if (message.type === 'input_audio_buffer.speech_started') {
@@ -335,7 +337,7 @@ export const handleOpenAIMessage = (
 
       // Clear any ongoing speech on Twilio side
       mediaStreamWs.send(
-        JSON.stringify({
+        stringify({
           streamSid: session.streamSid,
           event: 'clear',
         })

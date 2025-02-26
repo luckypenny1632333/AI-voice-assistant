@@ -15,6 +15,7 @@ import { type CallSession, CallSessionService } from '@/services/call-session';
 import { sendToWebhook } from '@/services/send-to-webhook';
 import { testSession } from '@/testdata/session.data';
 import { logger } from '@/utils/console-logger';
+import { stringify } from '@/utils/stringify';
 
 dotenv.config(); // Load environment variables from .env
 
@@ -81,6 +82,7 @@ export async function handleChatMessage(
     if (!message) {
       if (history.length === 0) {
         // set initial message
+        logger.log(`Setting initial message`, undefined, loggerContext);
         const memory = await sendToWebhook(
           {
             action: 'read_memory',
@@ -88,7 +90,7 @@ export async function handleChatMessage(
           },
           agent.getToolResponseSchema('read_memory')
         ).then((memory) => {
-          // logger.log('Memory read', { memory }, loggerContext);
+          logger.log(`Memory read: ${stringify(memory)}`, { memory }, loggerContext);
           if (memory.action !== 'read_memory' || !Array.isArray(memory.response)) return [];
           return memory.response as { key: string; value: string; isGlobal?: boolean }[];
         });
@@ -114,7 +116,7 @@ export async function handleChatMessage(
         );
         updatedHistory.push({
           role: 'user',
-          content: JSON.stringify(callSummaryResponse),
+          content: stringify(callSummaryResponse),
           isHiddenMessage: true,
         });
       }
@@ -205,7 +207,7 @@ export const callTool = async (
   if (!tool) {
     return {
       role: 'tool',
-      content: JSON.stringify({ error: `Tool ${functionName} not found` }),
+      content: stringify({ error: `Tool ${functionName} not found` }),
       tool_call_id: toolCall.id,
     };
   }
@@ -233,14 +235,14 @@ export const callTool = async (
 
     return {
       role: 'tool',
-      content: JSON.stringify(functionResult),
+      content: stringify(functionResult),
       tool_call_id: toolCall.id,
     };
   } catch (error) {
     logger.error(`Error calling tool ${functionName}:`, error, undefined, loggerContext);
     return {
       role: 'tool',
-      content: JSON.stringify({ error: `Error calling tool ${functionName}` }),
+      content: stringify({ error: `Error calling tool ${functionName}` }),
       tool_call_id: toolCall.id,
     };
   }

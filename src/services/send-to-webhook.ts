@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { type CallSession } from '@/services/call-session';
 import { logger } from '@/utils/console-logger';
 import { getMessageFromUnknownError } from '@/utils/errors';
+import { stringify } from '@/utils/stringify';
 
 const loggerContext = 'Webhook';
 
@@ -44,13 +45,30 @@ export const sendToWebhook = (async (payload, schema?: z.ZodType) => {
 
   try {
     // call webhook
+    logger.log(
+      `Sending ${action} to webhook ${url}, payload ${stringify(payload)}`,
+      { url },
+      loggerContext
+    );
     const response = await axios.post(url, payload, {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${process.env.WEBHOOK_TOKEN}`,
       },
     });
-    // logger.log(`Raw webhook response for ${action}`, { rawResponse: response.data }, loggerContext);
+    logger.log(
+      `Raw webhook response for ${action}: ${stringify(response.data)}`,
+      { rawResponse: response.data },
+      loggerContext
+    );
+
+    // handle empty response (remove empty objects from result array as n8n adds them when there is no result on db queries (e.g. postgres node))
+    const responseData = (
+      response.data.status && 'response' in response.data ? response.data.response : response.data
+    ).filter(
+      (r: unknown) =>
+        r !== undefined && r !== null && typeof r === 'object' && Object.keys(r).length > 0
+    );
 
     // parse response
     const webhookResponse = {
@@ -58,11 +76,7 @@ export const sendToWebhook = (async (payload, schema?: z.ZodType) => {
       status: response.data.status ?? response.status,
       message: response.data.message ?? response.statusText,
       ...(schema && {
-        response: schema.parse(
-          response.data.status && 'response' in response.data
-            ? response.data.response
-            : response.data
-        ),
+        response: schema.parse(responseData),
       }),
     };
 
@@ -74,7 +88,7 @@ export const sendToWebhook = (async (payload, schema?: z.ZodType) => {
     const executionTime = Date.now() - startTime;
     const errorMessage = getMessageFromUnknownError(error);
     logger.error(
-      'Error sending data to webhook',
+      `Error sending data to webhook: ${stringify(errorMessage)}`,
       errorMessage,
       {
         url,
